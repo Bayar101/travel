@@ -20,10 +20,13 @@ export function defaultEmoji(category: Category | undefined): string {
   return category?.emoji || DEFAULT_EMOJI;
 }
 
+const DECIMAL = /^[-+]?(\d+\.?\d*|\.\d+)$/;
+
 function coord(s: string, max: number): number | null {
-  if (!s.trim()) return null;
-  const n = Number(s.trim());
-  return Number.isFinite(n) && Math.abs(n) <= max ? n : null;
+  const t = s.trim();
+  if (!DECIMAL.test(t)) return null;
+  const n = Number(t);
+  return Math.abs(n) <= max ? n : null;
 }
 
 export function validateLocationForm(v: LocationFormValues): LocationFormErrors {
@@ -31,8 +34,10 @@ export function validateLocationForm(v: LocationFormValues): LocationFormErrors 
   if (!v.name.trim()) e.name = "Name is required";
   if (!v.city.trim()) e.city = "City is required";
   if (!v.emoji.trim()) e.emoji = "Emoji is required";
-  if (coord(v.lat, 90) === null) e.lat = "Latitude must be -90 to 90";
-  if (coord(v.lng, 180) === null) e.lng = "Longitude must be -180 to 180";
+  if (!v.lat.trim()) e.lat = "Latitude is required";
+  else if (coord(v.lat, 90) === null) e.lat = "Latitude must be a number from -90 to 90";
+  if (!v.lng.trim()) e.lng = "Longitude is required";
+  else if (coord(v.lng, 180) === null) e.lng = "Longitude must be a number from -180 to 180";
   return e;
 }
 

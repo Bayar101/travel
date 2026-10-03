@@ -28,12 +28,17 @@ export default function LocationsView() {
   const [categoryId, setCategoryId] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const cities = useMemo(() => (data ? cityList(data) : []), [data]);
+  // Selected value may vanish after edits/deletes/sync: treat as "all".
+  const activeCity = cities.includes(city) ? city : "";
+  const activeCategory = data?.categories.some((c) => c.id === categoryId) ? categoryId : "";
+
   const rows = useMemo(
     () =>
       data
-        ? filterLocations(data, { query, type, city: city || undefined, category_id: categoryId || undefined })
+        ? filterLocations(data, { query, type, city: activeCity || undefined, category_id: activeCategory || undefined })
         : [],
-    [data, query, type, city, categoryId],
+    [data, query, type, activeCity, activeCategory],
   );
   if (!data) return null;
 
@@ -86,13 +91,13 @@ export default function LocationsView() {
           ))}
         </div>
         <div className="flex gap-2">
-          <select aria-label="City" value={city} onChange={(e) => setCity(e.target.value)} className={SELECT}>
+          <select aria-label="City" value={activeCity} onChange={(e) => setCity(e.target.value)} className={SELECT}>
             <option value="">All cities</option>
-            {cityList(data).map((c) => (
+            {cities.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <select aria-label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={SELECT}>
+          <select aria-label="Category" value={activeCategory} onChange={(e) => setCategoryId(e.target.value)} className={SELECT}>
             <option value="">All categories</option>
             {data.categories.map((c) => (
               <option key={c.id} value={c.id}>{`${c.emoji ?? ""} ${c.name}`.trim()}</option>

@@ -22,9 +22,11 @@ export default function LocationDetailView({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false); // suppress "Not found" flash between prune and navigation
   if (!data) return null;
 
   const l = locationById(data, id);
+  if (!l && deleted) return null;
   if (!l) {
     return (
       <>
@@ -107,8 +109,8 @@ export default function LocationDetailView({ id }: { id: string }) {
         onClose={() => setDeleting(false)}
         onConfirm={async () => {
           await remove("locations", l.id);
-          setDeleting(false);
-          goBack();
+          setDeleted(true);
+          navigate(parent ? `/location/${encodeURIComponent(parent.id)}` : "/locations");
           toast.show("Location deleted");
         }}
       />

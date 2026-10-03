@@ -21,6 +21,19 @@ describe("validateLocationForm", () => {
     expect(validateLocationForm({ ...base, lng: "-181" }).lng).toBeDefined();
     expect(validateLocationForm({ ...base, lat: "-90", lng: "180" })).toEqual({});
   });
+  it("empty coords say required", () => {
+    const e = validateLocationForm({ ...base, lat: "", lng: " " });
+    expect(e.lat).toBe("Latitude is required");
+    expect(e.lng).toBe("Longitude is required");
+  });
+  it("rejects non-decimal forms", () => {
+    for (const bad of ["1e1", "0x10", "Infinity", "1,5", "--1"]) {
+      expect(validateLocationForm({ ...base, lat: bad }).lat).toBeDefined();
+    }
+    for (const ok of ["+35.6", "-1", ".5", "10."]) {
+      expect(validateLocationForm({ ...base, lat: ok }).lat).toBeUndefined();
+    }
+  });
 });
 
 describe("locationPayload", () => {
