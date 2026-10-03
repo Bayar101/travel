@@ -1,26 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { sheetHistory } from "@/lib/sheet-history";
 import { useVisualViewport } from "./useVisualViewport";
-
-// Open sheets, topmost last. Only the topmost handles Escape / history back.
-interface Entry { id: number; close: () => void; popped: boolean }
-const stack: Entry[] = [];
-let nextId = 0;
-let ignorePops = 0;
-let popListening = false;
-
-function onPop() {
-  if (ignorePops > 0) {
-    ignorePops--;
-    return;
-  }
-  const top = stack[stack.length - 1];
-  if (top) {
-    top.popped = true;
-    top.close();
-  }
-}
 
 export default function Sheet({
   open,
@@ -49,20 +31,9 @@ export default function Sheet({
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const entry: Entry = { id: nextId++, close: () => closeRef.current(), popped: false };
-    stack.push(entry);
-    if (!popListening) {
-      window.addEventListener("popstate", onPop);
-      popListening = true;
-    }
-    // Deferred so StrictMode's mount/unmount/mount doesn't push then immediately back().
-    let pushed = false;
-    const t = setTimeout(() => {
-      history.pushState({ sheet: entry.id }, "");
-      pushed = true;
-    }, 0);
+    const handle = sheetHistory.open(() => closeRef.current());
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && stack[stack.length - 1] === entry) entry.close();
+      if (e.key === "Escape" && handle.isTop()) closeRef.current();
     };
     document.addEventListener("keydown", onKey);
     const el = panel.current;
@@ -73,18 +44,9 @@ export default function Sheet({
     }
     if (el && !el.contains(document.activeElement)) el.focus();
     return () => {
-      clearTimeout(t);
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
-      const i = stack.indexOf(entry);
-      if (i >= 0) stack.splice(i, 1);
-      if (pushed && !entry.popped) {
-        const s = history.state as { sheet?: number } | null;
-        if (s?.sheet === entry.id) {
-          ignorePops++;
-          history.back();
-        }
-      }
+      handle.release();
     };
   }, [open, autoFocus]);
 

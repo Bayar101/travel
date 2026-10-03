@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { sheetHistory } from "./sheet-history";
 import { parseHash, type Route } from "./parse-hash";
 
 export { parseHash };
@@ -26,6 +27,7 @@ export function useRoute(): Route {
   return route;
 }
 
+// Sheet-aware: callers may close a sheet and navigate in any order.
 export function navigate(path: string): void {
-  window.location.hash = path.startsWith("#") ? path : `#${path}`;
+  sheetHistory.navigate(path.startsWith("#") ? path : `#${path}`);
 }
