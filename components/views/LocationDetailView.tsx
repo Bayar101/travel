@@ -108,8 +108,13 @@ export default function LocationDetailView({ id }: { id: string }) {
         impact={impactText ? `Also deletes: ${impactText}` : undefined}
         onClose={() => setDeleting(false)}
         onConfirm={async () => {
-          await remove("locations", l.id);
-          setDeleted(true);
+          setDeleted(true); // before the write: prune re-renders synchronously with the location gone
+          try {
+            await remove("locations", l.id);
+          } catch (e) {
+            setDeleted(false);
+            throw e;
+          }
           navigate(parent ? `/location/${encodeURIComponent(parent.id)}` : "/locations");
           toast.show("Location deleted");
         }}
