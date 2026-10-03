@@ -1,6 +1,6 @@
 "use client";
 
-import { navigate } from "@/lib/router";
+import { goBack } from "@/lib/router";
 
 export default function Header({
   title,
@@ -18,7 +18,7 @@ export default function Header({
           <button
             type="button"
             aria-label="Back"
-            onClick={() => (history.length > 1 ? history.back() : navigate("/"))}
+            onClick={goBack}
             className="flex size-11 shrink-0 items-center justify-center rounded-lg text-2xl text-zinc-100 active:bg-zinc-800"
           >
             ←

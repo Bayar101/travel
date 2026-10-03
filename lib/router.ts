@@ -31,3 +31,9 @@ export function useRoute(): Route {
 export function navigate(path: string): void {
   sheetHistory.navigate(path.startsWith("#") ? path : `#${path}`);
 }
+
+// Back only when the previous entry is in-app; deep-link landing falls back to home.
+export function goBack(): void {
+  if (sheetHistory.canGoBack()) history.back();
+  else navigate("/");
+}

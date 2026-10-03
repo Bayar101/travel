@@ -8,9 +8,12 @@
 // stray same-URL entry is left and a pending back can't undo the new hash.
 
 export interface HistoryEnv {
-  pushState(state: unknown): void;
+  pushState(state: { sheet: true; depth: number }): void;
   go(delta: number): void;
+  currentHash(): string;
   setHash(hash: string): void;
+  getDepth(): number; // in-app navigation depth stored in the current entry's state
+  setDepth(depth: number): void; // replaceState on the current entry
   onPop(handler: () => void): void; // register once
 }
 
@@ -31,31 +34,52 @@ export function createSheetHistory(env: HistoryEnv) {
   const open: Entry[] = []; // mounted sheets, topmost last (Escape)
   let hist: Entry[] = []; // entries living in browser history, topmost last
   let backsInFlight = 0;
+  let deferredBack = 0; // backs requested while one was in flight; never overlap go() calls
   let pendingNav: string | null = null;
   let reconcileQueued = false;
   let listening = false;
 
+  function applyHash(h: string) {
+    if (env.currentHash() === h) return;
+    const d = env.getDepth();
+    env.setHash(h);
+    env.setDepth(d + 1);
+  }
+
   function onPop() {
     if (backsInFlight > 0) {
       backsInFlight--;
-      if (backsInFlight === 0 && pendingNav !== null) {
+      if (backsInFlight > 0) return;
+      if (deferredBack > 0) {
+        const n = deferredBack;
+        deferredBack = 0;
+        backsInFlight++;
+        env.go(-n);
+        return;
+      }
+      if (pendingNav !== null) {
         const p = pendingNav;
         pendingNav = null;
-        env.setHash(p);
+        applyHash(p);
       }
       return;
     }
-    // User/OS back: topmost sheet's entry was popped; close it.
+    // User/OS back: topmost sheet's entry was popped; close it (unless already released).
     const e = hist.pop();
     if (e) {
       e.inHistory = false;
       e.dead = true;
-      e.close();
+      if (!e.released) e.close();
     }
+    queueReconcile(); // released lower entries are now exposed
   }
 
   function unwind(n: number) {
     if (n <= 0) return;
+    if (backsInFlight > 0) {
+      deferredBack += n;
+      return;
+    }
     backsInFlight++;
     env.go(-n);
   }
@@ -70,6 +94,12 @@ export function createSheetHistory(env: HistoryEnv) {
     unwind(n);
   }
 
+  function queueReconcile() {
+    if (reconcileQueued) return;
+    reconcileQueued = true;
+    queueMicrotask(reconcile); // batch sheets unmounting together
+  }
+
   function openSheet(close: () => void): SheetHandle {
     if (!listening) {
       env.onPop(onPop);
@@ -81,7 +111,7 @@ export function createSheetHistory(env: HistoryEnv) {
     entry.timer = setTimeout(() => {
       entry.timer = undefined;
       if (entry.released || entry.dead) return;
-      env.pushState({ sheet: true });
+      env.pushState({ sheet: true, depth: env.getDepth() });
       entry.inHistory = true;
       hist.push(entry);
     }, 0);
@@ -93,10 +123,7 @@ export function createSheetHistory(env: HistoryEnv) {
         clearTimeout(entry.timer);
         const i = open.indexOf(entry);
         if (i >= 0) open.splice(i, 1);
-        if (entry.inHistory && !reconcileQueued) {
-          reconcileQueued = true;
-          queueMicrotask(reconcile); // batch sheets unmounting together
-        }
+        if (entry.inHistory) queueReconcile();
       },
     };
   }
@@ -114,19 +141,25 @@ export function createSheetHistory(env: HistoryEnv) {
     }
     hist = [];
     if (n === 0 && backsInFlight === 0) {
-      env.setHash(hash);
+      applyHash(hash);
       return;
     }
     pendingNav = hash;
     unwind(n);
   }
 
-  return { open: openSheet, navigate };
+  // True when the previous history entry is an in-app route (safe to history.back()).
+  const canGoBack = () => env.getDepth() > 0;
+
+  return { open: openSheet, navigate, canGoBack };
 }
 
 export const sheetHistory = createSheetHistory({
   pushState: (state) => history.pushState(state, ""),
   go: (d) => history.go(d),
+  currentHash: () => window.location.hash,
+  getDepth: () => (history.state as { depth?: number } | null)?.depth ?? 0,
+  setDepth: (depth) => history.replaceState({ depth }, ""),
   setHash: (h) => {
     window.location.hash = h;
   },
