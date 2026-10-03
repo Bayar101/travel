@@ -1,8 +1,9 @@
 "use client";
 
 import BottomNav from "./BottomNav";
-import Header from "./Header";
 import CategoriesView from "./views/CategoriesView";
+import DayDetailView from "./views/DayDetailView";
+import DaysView from "./views/DaysView";
 import LocationDetailView from "./views/LocationDetailView";
 import LocationsView from "./views/LocationsView";
 import StaysView from "./views/StaysView";
@@ -11,15 +12,6 @@ import { ToastProvider } from "./Toast";
 import { useRoute, type Route } from "@/lib/router";
 import { showLoadError } from "@/lib/sync-logic";
 import { sync, useTrip } from "@/lib/store";
-
-function Placeholder({ title, back }: { title: string; back?: boolean }) {
-  return (
-    <>
-      <Header title={title} back={back} />
-      <p className="p-4 text-zinc-400">Coming soon</p>
-    </>
-  );
-}
 
 function Skeleton() {
   return (
@@ -49,13 +41,12 @@ function LoadError({ online }: { online: boolean }) {
   );
 }
 
-// View switch: Tasks 7-9 replace the placeholders below.
 function View({ route }: { route: Route }) {
   switch (route.view) {
     case "days":
-      return <Placeholder title="Days" />;
+      return <DaysView />;
     case "day":
-      return <Placeholder title="Day" back />;
+      return <DayDetailView id={route.id} />;
     case "locations":
       return <LocationsView />;
     case "location":
