@@ -44,3 +44,13 @@ export function requestSync(
 export function finishSync(gate: SyncGate): { gate: SyncGate; followUp: boolean } {
   return { gate: { running: false, queuedForce: false }, followUp: gate.queuedForce };
 }
+
+/** Show the load-error screen: nothing to display and loading can't (or didn't) succeed. */
+export function showLoadError(s: {
+  data: unknown;
+  loading: boolean;
+  error: boolean;
+  online: boolean;
+}): boolean {
+  return !s.data && !s.loading && (s.error || !s.online);
+}

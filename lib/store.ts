@@ -85,11 +85,13 @@ async function run(): Promise<void> {
 }
 
 async function doSync(): Promise<void> {
+  let redirecting = false;
   try {
     const headers: Record<string, string> = {};
     if (state.data) headers["If-None-Match"] = etagFor(state.data.version);
     const res = await fetch("/api/data", { headers });
     if (res.status === 401) {
+      redirecting = true;
       window.location.replace("/login");
       return;
     }
@@ -101,7 +103,7 @@ async function doSync(): Promise<void> {
   } catch {
     // network failure: keep cached data
   } finally {
-    setState({ error: !state.data });
+    if (!redirecting) setState({ error: !state.data });
   }
 }
 

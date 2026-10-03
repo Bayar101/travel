@@ -5,6 +5,7 @@ import Header from "./Header";
 import OfflineBadge from "./OfflineBadge";
 import { ToastProvider } from "./Toast";
 import { useRoute, type Route } from "@/lib/router";
+import { showLoadError } from "@/lib/sync-logic";
 import { sync, useTrip } from "@/lib/store";
 
 function Placeholder({ title, back }: { title: string; back?: boolean }) {
@@ -63,14 +64,14 @@ function View({ route }: { route: Route }) {
 }
 
 export default function App() {
-  const { data, online, error } = useTrip();
+  const { data, online, loading, error } = useTrip();
   const route = useRoute();
 
   return (
     <ToastProvider>
       <div className="mx-auto min-h-dvh max-w-md pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
         {!online && <OfflineBadge />}
-        {data ? <View route={route} /> : error ? <LoadError online={online} /> : <Skeleton />}
+        {data ? <View route={route} /> : showLoadError({ data, loading, error, online }) ? <LoadError online={online} /> : <Skeleton />}
       </div>
       <BottomNav route={route} />
     </ToastProvider>
