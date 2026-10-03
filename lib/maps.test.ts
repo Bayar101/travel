@@ -39,4 +39,24 @@ describe("parseLatLng", () => {
     expect(parseLatLng("95, 139")).toBeNull();
     expect(parseLatLng("35, 190")).toBeNull();
   });
+  it("fullwidth separators and leading +", () => {
+    expect(parseLatLng("35.6，139.7")).toEqual({ lat: 35.6, lng: 139.7 });
+    expect(parseLatLng("35.6、139.7")).toEqual({ lat: 35.6, lng: 139.7 });
+    expect(parseLatLng("+35.6, +139.7")).toEqual({ lat: 35.6, lng: 139.7 });
+  });
+  it("negative !3d/!4d", () => {
+    expect(parseLatLng("https://www.google.com/maps/place/X/data=!8m2!3d-33.8688!4d-70.5")).toEqual({
+      lat: -33.8688,
+      lng: -70.5,
+    });
+  });
+  it("boundaries inclusive", () => {
+    expect(parseLatLng("90, 180")).toEqual({ lat: 90, lng: 180 });
+    expect(parseLatLng("-90, -180")).toEqual({ lat: -90, lng: -180 });
+    expect(parseLatLng("90.1, 0")).toBeNull();
+  });
+  it("ll= and center=", () => {
+    expect(parseLatLng("https://maps.google.com/?ll=35.1,139.2&z=10")).toEqual({ lat: 35.1, lng: 139.2 });
+    expect(parseLatLng("https://www.google.com/maps?center=35.1,139.2")).toEqual({ lat: 35.1, lng: 139.2 });
+  });
 });

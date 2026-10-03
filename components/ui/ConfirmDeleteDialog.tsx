@@ -30,6 +30,7 @@ function Body({
       await onConfirm();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
       setBusy(false);
     }
   }
@@ -37,6 +38,8 @@ function Body({
   return (
     <Sheet
       open
+      autoFocus
+      alert
       title={title}
       onClose={busy ? () => {} : onClose}
       footer={
@@ -66,6 +69,7 @@ function Body({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={PHRASE}
+            enterKeyHint="done"
             autoCapitalize="off"
             autoCorrect="off"
             autoComplete="off"

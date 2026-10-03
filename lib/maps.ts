@@ -2,7 +2,7 @@ export function mapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
 
-const NUM = "-?\\d+(?:\\.\\d+)?";
+const NUM = "[-+]?\\d+(?:\\.\\d+)?";
 
 function valid(lat: number, lng: number): { lat: number; lng: number } | null {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -23,6 +23,7 @@ export function parseLatLng(input: string): { lat: number; lng: number } | null 
   } catch {
     // keep raw
   }
+  s = s.replace(/[，、]/g, ",");
   const plain = s.match(new RegExp(`^(${NUM})\\s*[,\\s]\\s*(${NUM})$`));
   if (plain) return fromMatch(plain);
   const patterns = [

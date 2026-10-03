@@ -23,7 +23,8 @@ export default function MapsButton({
           : `inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-zinc-800 px-4 text-base font-medium text-zinc-100 active:bg-zinc-700 ${className}`
       }
     >
-      {compact ? "📍" : "📍 Maps"}
+      <span aria-hidden="true">📍</span>
+      {!compact && " Maps"}
     </a>
   );
 }

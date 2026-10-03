@@ -39,6 +39,7 @@ export default function LocationPicker({
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search locations"
         aria-label="Search locations"
+        enterKeyHint="search"
         autoCapitalize="off"
         autoCorrect="off"
         className="min-h-11 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-base text-zinc-100 placeholder:text-zinc-600"
