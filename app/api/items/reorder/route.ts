@@ -4,7 +4,7 @@ import { isUuid } from "@/lib/resources";
 
 export const dynamic = "force-dynamic";
 
-const MAX_IDS = 500;
+const MAX_IDS = 100;
 
 export const POST = handler("api.items.reorder", async ({ req }) => {
   const body = await readJson(req);

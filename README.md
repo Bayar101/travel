@@ -7,7 +7,7 @@ Personal mobile-first trip planner. Next.js SPA (hash routes), Supabase (server-
 1. Supabase: create project, open SQL editor, run `supabase/migrations/0001_init.sql`.
 2. `cp .env.example .env.local` and fill:
    - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Project settings > API; service key stays server-side)
-   - `APP_PASSWORD_HASH`: run `npm run hash-password` (prompts for password), paste output value
+   - `APP_PASSWORD_HASH`: run `npm run hash-password` (prompts for password). It prints one line `APP_PASSWORD_HASH=<salt>:<hash>`: paste that whole line into `.env.local`. Choose a long password (e.g. 4+ random words): login has no rate limit, so the password is the only protection.
    - `SESSION_SECRET`: `openssl rand -base64 32`
 3. `npm install`, then `npm run dev` (http://localhost:3000).
 
@@ -15,7 +15,7 @@ Scripts: `npm test`, `npm run lint`, `npm run build`.
 
 ## Deploy (Vercel)
 
-Import repo, add the 4 env vars above (Production), deploy.
+Import repo, add the 4 env vars above (Production), deploy. For `APP_PASSWORD_HASH` in Vercel, the value is only the part after `=` (`<salt>:<hash>`), not the whole printed line.
 
 ## Install on phone
 

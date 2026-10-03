@@ -8,12 +8,20 @@ export function hashPassword(pw: string): string {
   return `${salt.toString("hex")}:${scryptSync(pw, salt, KEYLEN).toString("hex")}`;
 }
 
-export function verifyPassword(pw: string, stored: string): boolean {
+const HEX_RE = /^[0-9a-f]+$/i;
+
+/** `<salt_hex>:<hash_hex>` with a KEYLEN-byte hash: what hash-password prints. */
+export function isValidStoredHash(stored: string | undefined): stored is string {
+  if (!stored) return false;
   const [saltHex, hashHex, extra] = stored.split(":");
   if (!saltHex || !hashHex || extra !== undefined) return false;
-  if (!/^[0-9a-f]+$/i.test(saltHex) || !/^[0-9a-f]+$/i.test(hashHex)) return false;
-  const expected = Buffer.from(hashHex, "hex");
-  if (expected.length !== KEYLEN) return false;
+  if (!HEX_RE.test(saltHex) || !HEX_RE.test(hashHex)) return false;
+  return hashHex.length === KEYLEN * 2;
+}
+
+export function verifyPassword(pw: string, stored: string): boolean {
+  if (!isValidStoredHash(stored)) return false;
+  const [saltHex, hashHex] = stored.split(":");
   const actual = scryptSync(pw, Buffer.from(saltHex, "hex"), KEYLEN);
-  return timingSafeEqual(actual, expected);
+  return timingSafeEqual(actual, Buffer.from(hashHex, "hex"));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { hashPassword, isValidStoredHash, verifyPassword } from "@/lib/password";
 
 describe("password", () => {
   it("hash format salt:hash hex", () => {
@@ -21,5 +21,19 @@ describe("password", () => {
   });
   it("salts differ", () => {
     expect(hashPassword("pw")).not.toBe(hashPassword("pw"));
+  });
+});
+
+describe("isValidStoredHash", () => {
+  it("accepts generated hash", () => {
+    expect(isValidStoredHash(hashPassword("pw"))).toBe(true);
+  });
+  it("rejects missing or malformed", () => {
+    expect(isValidStoredHash(undefined)).toBe(false);
+    expect(isValidStoredHash("")).toBe(false);
+    expect(isValidStoredHash("abc")).toBe(false);
+    expect(isValidStoredHash("zz:yy")).toBe(false);
+    expect(isValidStoredHash("ab:cd")).toBe(false); // wrong key length
+    expect(isValidStoredHash(`${hashPassword("pw")}:x`)).toBe(false);
   });
 });
