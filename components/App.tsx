@@ -8,6 +8,7 @@ import LocationDetailView from "./views/LocationDetailView";
 import LocationsView from "./views/LocationsView";
 import StaysView from "./views/StaysView";
 import OfflineBadge from "./OfflineBadge";
+import RegisterSW from "./RegisterSW";
 import { ToastProvider } from "./Toast";
 import { useRoute, type Route } from "@/lib/router";
 import { showLoadError } from "@/lib/sync-logic";
@@ -64,6 +65,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <RegisterSW />
       <div className="mx-auto min-h-dvh max-w-md pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
         {!online && <OfflineBadge />}
         {data ? <View route={route} /> : showLoadError({ data, loading, error, online }) ? <LoadError online={online} /> : <Skeleton />}
