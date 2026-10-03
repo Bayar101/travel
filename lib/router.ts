@@ -15,14 +15,28 @@ function subscribe(cb: () => void): () => void {
 const getHash = () => window.location.hash;
 const getServerHash = () => "";
 
+const routeKey = (route: Route) => route.view + ("id" in route ? `:${route.id}` : "");
+
+let claimedKey: string | null = null;
+
+/**
+ * A view that sets its own scroll position on mount (e.g. restoring the Days list)
+ * calls this from a layout effect so useRoute skips its scroll-to-top for that route.
+ */
+export function claimScroll(route: Route): void {
+  claimedKey = routeKey(route);
+}
+
 // Server/hydration snapshot is "" (default route), so no hydration mismatch;
 // React re-renders with the real hash right after hydration.
 export function useRoute(): Route {
   const hash = useSyncExternalStore(subscribe, getHash, getServerHash);
   const route = parseHash(hash);
-  const key = route.view + ("id" in route ? `:${route.id}` : "");
+  const key = routeKey(route);
   useEffect(() => {
-    window.scrollTo(0, 0);
+    const claimed = claimedKey === key;
+    claimedKey = null;
+    if (!claimed) window.scrollTo(0, 0);
   }, [key]);
   return route;
 }

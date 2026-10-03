@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import DayForm from "@/components/forms/DayForm";
 import Header from "@/components/Header";
 import { useToast } from "@/components/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import { logout } from "@/lib/api-client";
-import { navigate } from "@/lib/router";
+import { claimScroll, navigate } from "@/lib/router";
 import { stayForNight, todayISO } from "@/lib/selectors";
 import { formatDay } from "@/lib/stay-dates";
 import { useTrip } from "@/lib/store";
 
-let scrolledOnce = false; // auto-scroll once per session; returning from a day keeps position
+// Days list scroll for this session: null until first shown (then centered on today);
+// afterwards the position when leaving, restored on return (back from a day, tab switch).
+let savedY: number | null = null;
 
 export default function DaysView() {
   const { data, online } = useTrip();
@@ -21,14 +23,14 @@ export default function DaysView() {
   const [loggingOut, setLoggingOut] = useState(false);
   const target = useRef<HTMLLIElement>(null);
 
-  // First mount only. Deferred: useRoute resets scroll to top in a parent effect that runs after this one.
-  useEffect(() => {
-    if (scrolledOnce) return;
-    const raf = requestAnimationFrame(() => {
-      scrolledOnce = true;
-      target.current?.scrollIntoView({ block: "center" });
-    });
-    return () => cancelAnimationFrame(raf);
+  // Layout effects: restore before paint, and save on unmount while the list is still in the DOM.
+  useLayoutEffect(() => {
+    claimScroll({ view: "days" });
+    if (savedY === null) target.current?.scrollIntoView({ block: "center" });
+    else window.scrollTo(0, savedY);
+    return () => {
+      savedY = window.scrollY;
+    };
   }, []);
 
   if (!data) return null;
