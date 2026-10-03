@@ -81,8 +81,8 @@ export async function reorderItems(dayId: string, ids: string[]): Promise<void> 
 }
 
 export async function logout(): Promise<void> {
+  await request<void>("/api/logout", "POST"); // throws offline/failure: keep the offline cache
   await del("trip-data-v1").catch(() => {});
-  await request<void>("/api/logout", "POST");
   window.location.replace("/login");
 }
 

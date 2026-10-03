@@ -7,14 +7,15 @@ import type { DayItem, TripData } from "@/lib/types";
 
 export function NoteCallout({ note }: { note: string }) {
   return (
-    <p className="whitespace-pre-wrap break-words rounded-lg border border-amber-700 bg-amber-950/40 px-3 py-2 text-base text-amber-200">
+    <span className="block whitespace-pre-wrap break-words rounded-lg border border-amber-700 bg-amber-950/40 px-3 py-2 text-base text-amber-200">
       ⚠️ {note}
-    </p>
+    </span>
   );
 }
 
 const MOVE =
   "flex size-11 shrink-0 items-center justify-center rounded-lg text-xl text-zinc-100 active:bg-zinc-800 disabled:opacity-30";
+
 
 export default function DayItemRow({
   item,
@@ -40,12 +41,17 @@ export default function DayItemRow({
           className="flex min-h-14 min-w-0 flex-1 items-start gap-3 rounded-xl py-2 pl-3 text-left active:bg-zinc-800"
         >
           {item.time && <span className="w-12 shrink-0 pt-0.5 text-base font-semibold tabular-nums text-zinc-100">{item.time}</span>}
-          <span aria-hidden="true" className="text-2xl">{loc ? loc.emoji : "📝"}</span>
+          <span aria-hidden="true" className="text-2xl">{loc ? loc.emoji : item.location_id ? "❓" : "📝"}</span>
           <span className="min-w-0 flex-1 space-y-1">
             {loc ? (
               <>
                 <span className="block break-words text-base text-zinc-100">{loc.name}</span>
                 <span className="block truncate text-sm text-zinc-400">{loc.city}</span>
+                {item.note && <NoteCallout note={item.note} />}
+              </>
+            ) : item.location_id ? (
+              <>
+                <span className="block text-base text-zinc-400">Unknown location</span>
                 {item.note && <NoteCallout note={item.note} />}
               </>
             ) : (
@@ -65,17 +71,17 @@ export default function DayItemRow({
           </button>
         )}
         {loc && <MapsButton lat={loc.lat} lng={loc.lng} compact />}
-        {move && (
-          <div className="flex shrink-0 flex-col">
-            <button type="button" aria-label="Move up" disabled={move.upDisabled} onClick={move.onUp} className={MOVE}>
-              ↑
-            </button>
-            <button type="button" aria-label="Move down" disabled={move.downDisabled} onClick={move.onDown} className={MOVE}>
-              ↓
-            </button>
-          </div>
-        )}
       </div>
+      {move && (
+        <div className="flex justify-end gap-1 border-t border-zinc-800 px-1">
+          <button type="button" aria-label="Move up" disabled={move.upDisabled} onClick={move.onUp} className={MOVE}>
+            ↑
+          </button>
+          <button type="button" aria-label="Move down" disabled={move.downDisabled} onClick={move.onDown} className={MOVE}>
+            ↓
+          </button>
+        </div>
+      )}
       {open && places.length > 0 && (
         <ul className="space-y-1 border-t border-zinc-800 px-3 py-2">
           {places.map((p) => (

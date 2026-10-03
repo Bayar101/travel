@@ -89,7 +89,7 @@ function Body({ day, onClose, onDelete }: { day?: Day; onClose: () => void; onDe
         <ConfirmDeleteDialog
           open={confirming}
           title="Delete this day?"
-          impact={`Also deletes: ${n} item${n === 1 ? "" : "s"}`}
+          impact={n ? `Also deletes: ${n} item${n === 1 ? "" : "s"}` : undefined}
           onClose={() => setConfirming(false)}
           onConfirm={onDelete}
         />

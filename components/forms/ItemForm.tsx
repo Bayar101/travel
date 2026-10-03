@@ -21,18 +21,19 @@ function Body({
 }: {
   dayId: string;
   item?: DayItem;
-  mode: "location" | "note";
+  mode?: "location" | "note"; // undefined for a new item: start at the choose step
   onClose: () => void;
 }) {
   const { data, online } = useTrip();
   const toast = useToast();
   const [v, setV] = useState<ItemFormValues>(() =>
-    item ? itemToForm(item) : { mode, location_id: "", time: null, note: "" },
+    item ? itemToForm(item) : { mode: mode ?? "location", location_id: "", time: null, note: "" },
   );
   const [errors, setErrors] = useState<ItemFormErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(() => !item && mode === "location");
+  const [choosing, setChoosing] = useState(!item && !mode);
   const [confirming, setConfirming] = useState(false);
 
   if (!data) return null;
@@ -59,13 +60,20 @@ function Body({
     }
   }
 
+  function choose(m: "location" | "note") {
+    setV((p) => ({ ...p, mode: m }));
+    setChoosing(false);
+    setPicking(m === "location");
+  }
+
   return (
     <>
       <Sheet
         open
-        title={item ? "Edit item" : isLocation ? "Add location" : "Add note"}
+        title={choosing ? "Add to this day" : item ? "Edit item" : isLocation ? "Add location" : "Add note"}
         onClose={busy ? () => {} : onClose}
         footer={
+          choosing ? undefined : (
           <div className="flex gap-2">
             {item && (
               <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
@@ -76,8 +84,19 @@ function Body({
               Save
             </Button>
           </div>
+          )
         }
       >
+        {choosing ? (
+          <div className="space-y-2">
+            <Button variant="secondary" className="w-full" onClick={() => choose("location")}>
+              📍 Location
+            </Button>
+            <Button variant="secondary" className="w-full" onClick={() => choose("note")}>
+              📝 Note
+            </Button>
+          </div>
+        ) : (
         <form
           id="item-form"
           noValidate
@@ -131,6 +150,7 @@ function Body({
             </p>
           )}
         </form>
+        )}
       </Sheet>
       <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)} autoFocus>
         <LocationPicker
@@ -167,5 +187,5 @@ export default function ItemForm(props: {
   onClose: () => void;
 }) {
   if (!props.open) return null;
-  return <Body dayId={props.dayId} item={props.item} mode={props.mode ?? "location"} onClose={props.onClose} />;
+  return <Body dayId={props.dayId} item={props.item} mode={props.mode} onClose={props.onClose} />;
 }

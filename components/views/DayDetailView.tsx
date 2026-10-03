@@ -9,22 +9,19 @@ import HotelCard from "@/components/HotelCard";
 import { useToast } from "@/components/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
-import Sheet from "@/components/ui/Sheet";
 import { remove, reorderItems } from "@/lib/api-client";
 import { moveId } from "@/lib/day-items";
 import { goBack, navigate } from "@/lib/router";
 import { itemsForDay } from "@/lib/selectors";
 import { formatDay } from "@/lib/stay-dates";
 import { useTrip } from "@/lib/store";
-import type { DayItem } from "@/lib/types";
 
 export default function DayDetailView({ id }: { id: string }) {
   const { data, online } = useTrip();
   const toast = useToast();
   const [editingDay, setEditingDay] = useState(false);
-  const [choosing, setChoosing] = useState(false);
-  const [adding, setAdding] = useState<"location" | "note" | null>(null);
-  const [editingItem, setEditingItem] = useState<DayItem | undefined>();
+  const [adding, setAdding] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [deleted, setDeleted] = useState(false); // suppress "Not found" flash between prune and navigation
   if (!data) return null;
@@ -41,6 +38,7 @@ export default function DayDetailView({ id }: { id: string }) {
   }
 
   const { timed, anytime } = itemsForDay(data, day.id);
+  const editingItem = editingItemId ? data.items.find((i) => i.id === editingItemId) : undefined; // closes if it disappears
   const anytimeIds = anytime.map((i) => i.id);
 
   async function move(itemId: string, dir: -1 | 1) {
@@ -85,7 +83,7 @@ export default function DayDetailView({ id }: { id: string }) {
             <h3 className="text-base font-semibold text-zinc-100">Timed</h3>
             <ul className="space-y-2">
               {timed.map((i) => (
-                <DayItemRow key={i.id} item={i} data={data} onEdit={() => setEditingItem(i)} />
+                <DayItemRow key={i.id} item={i} data={data} onEdit={() => setEditingItemId(i.id)} />
               ))}
             </ul>
           </section>
@@ -99,8 +97,8 @@ export default function DayDetailView({ id }: { id: string }) {
                   key={i.id}
                   item={i}
                   data={data}
-                  onEdit={() => setEditingItem(i)}
-                  move={{
+                  onEdit={() => setEditingItemId(i.id)}
+                  move={anytime.length < 2 ? undefined : {
                     onUp: () => void move(i.id, -1),
                     onDown: () => void move(i.id, 1),
                     upDisabled: idx === 0 || moving || !online,
@@ -111,36 +109,12 @@ export default function DayDetailView({ id }: { id: string }) {
             </ul>
           </section>
         )}
-        <Button className="w-full" disabled={!online} onClick={() => setChoosing(true)}>
+        <Button className="w-full" disabled={!online} onClick={() => setAdding(true)}>
           + Add
         </Button>
       </div>
-      <Sheet open={choosing} title="Add to this day" onClose={() => setChoosing(false)}>
-        <div className="space-y-2">
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={() => {
-              setChoosing(false);
-              setAdding("location");
-            }}
-          >
-            📍 Location
-          </Button>
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={() => {
-              setChoosing(false);
-              setAdding("note");
-            }}
-          >
-            📝 Note
-          </Button>
-        </div>
-      </Sheet>
-      <ItemForm open={adding !== null} dayId={day.id} mode={adding ?? "location"} onClose={() => setAdding(null)} />
-      <ItemForm open={!!editingItem} dayId={day.id} item={editingItem} onClose={() => setEditingItem(undefined)} />
+      <ItemForm open={adding} dayId={day.id} onClose={() => setAdding(false)} />
+      <ItemForm open={!!editingItem} dayId={day.id} item={editingItem} onClose={() => setEditingItemId(null)} />
       <DayForm
         open={editingDay}
         day={day}

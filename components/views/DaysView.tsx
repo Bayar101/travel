@@ -12,6 +12,8 @@ import { stayForNight, todayISO } from "@/lib/selectors";
 import { formatDay } from "@/lib/stay-dates";
 import { useTrip } from "@/lib/store";
 
+let scrolledOnce = false; // auto-scroll once per session; returning from a day keeps position
+
 export default function DaysView() {
   const { data, online } = useTrip();
   const toast = useToast();
@@ -21,7 +23,11 @@ export default function DaysView() {
 
   // First mount only. Deferred: useRoute resets scroll to top in a parent effect that runs after this one.
   useEffect(() => {
-    const raf = requestAnimationFrame(() => target.current?.scrollIntoView({ block: "center" }));
+    if (scrolledOnce) return;
+    const raf = requestAnimationFrame(() => {
+      scrolledOnce = true;
+      target.current?.scrollIntoView({ block: "center" });
+    });
     return () => cancelAnimationFrame(raf);
   }, []);
 
@@ -108,7 +114,7 @@ export default function DaysView() {
         </>
       )}
       <div className="flex justify-center px-4 pb-6 pt-2">
-        <Button variant="ghost" className="text-zinc-400" loading={loggingOut} onClick={() => void doLogout()}>
+        <Button variant="ghost" className="text-zinc-400" disabled={!online} loading={loggingOut} onClick={() => void doLogout()}>
           Log out
         </Button>
       </div>
