@@ -14,13 +14,18 @@ describe("planWrite", () => {
 });
 
 describe("acceptFetched", () => {
-  it("accepts when no local data, equal or newer", () => {
-    expect(acceptFetched(null, 1)).toBe(true);
-    expect(acceptFetched(5, 5)).toBe(true);
-    expect(acceptFetched(5, 9)).toBe(true);
+  it("accepts when no local data", () => {
+    expect(acceptFetched(null, 1, false)).toBe(true);
+    expect(acceptFetched(null, 1, true)).toBe(true);
   });
-  it("ignores stale snapshots", () => {
-    expect(acceptFetched(6, 5)).toBe(false);
+  it("without write activity accepts any version, even backwards (DB recreated)", () => {
+    expect(acceptFetched(50, 3, false)).toBe(true);
+    expect(acceptFetched(5, 9, false)).toBe(true);
+  });
+  it("during a write race accepts equal or newer, ignores stale", () => {
+    expect(acceptFetched(5, 5, true)).toBe(true);
+    expect(acceptFetched(5, 9, true)).toBe(true);
+    expect(acceptFetched(6, 5, true)).toBe(false);
   });
 });
 

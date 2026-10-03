@@ -1,6 +1,6 @@
 "use client";
 
-import { get, set } from "idb-keyval";
+import { del, get, set } from "idb-keyval";
 import { useEffect, useSyncExternalStore } from "react";
 import { etagFor } from "./etag";
 import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, type SyncGate } from "./sync-logic";
@@ -26,6 +26,8 @@ let state: TripState = SERVER_STATE;
 let started = false;
 let lastSync = 0;
 let gate: SyncGate = IDLE_GATE;
+let writesInFlight = 0;
+let writeSeq = 0; // bumped when a write request settles
 const listeners = new Set<() => void>();
 
 function setState(patch: Partial<TripState>): void {
@@ -36,6 +38,11 @@ function setState(patch: Partial<TripState>): void {
 function persist(data: TripData): void {
   const value: Persisted = { data };
   set(IDB_KEY, value).catch(() => {});
+}
+
+/** Drop the offline copy (logout / new login: never show another session's data). */
+export function clearCache(): Promise<void> {
+  return del(IDB_KEY).catch(() => {});
 }
 
 export function isOnline(): boolean {
@@ -64,6 +71,15 @@ export function applyWrite(update: (d: TripData) => TripData, version: number): 
   if (plan.refetch) void sync({ force: true });
 }
 
+/** Mark a write request in flight; call the returned fn when it settles. */
+export function beginWrite(): () => void {
+  writesInFlight++;
+  return () => {
+    writesInFlight--;
+    writeSeq++;
+  };
+}
+
 export function sync(opts: { force?: boolean } = {}): Promise<void> {
   const r = requestSync(gate, {
     force: !!opts.force,
@@ -86,6 +102,7 @@ async function run(): Promise<void> {
 
 async function doSync(): Promise<void> {
   let redirecting = false;
+  const seqAtStart = writeSeq;
   try {
     const headers: Record<string, string> = {};
     if (state.data) headers["If-None-Match"] = etagFor(state.data.version);
@@ -98,7 +115,8 @@ async function doSync(): Promise<void> {
     if (res.status === 200 || res.status === 304) lastSync = Date.now();
     if (res.status === 200) {
       const fetched = (await res.json()) as TripData;
-      if (acceptFetched(state.data?.version ?? null, fetched.version)) replaceData(fetched);
+      const raced = writesInFlight > 0 || writeSeq !== seqAtStart;
+      if (acceptFetched(state.data?.version ?? null, fetched.version, raced)) replaceData(fetched);
     }
   } catch {
     // network failure: keep cached data

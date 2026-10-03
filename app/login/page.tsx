@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { clearCache } from "@/lib/store";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -18,6 +19,7 @@ export default function LoginPage() {
         body: JSON.stringify({ password }),
       });
       if (res.status === 204) {
+        await clearCache(); // fresh session: refetch instead of trusting old offline data
         location.replace("/");
         return;
       }

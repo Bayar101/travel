@@ -15,9 +15,18 @@ export function planWrite(
     : { version: localVersion, refetch: true };
 }
 
-/** Ignore a fetched snapshot older than local data (a write landed meanwhile). */
-export function acceptFetched(localVersion: number | null, fetchedVersion: number): boolean {
-  return localVersion === null || fetchedVersion >= localVersion;
+/**
+ * Whether to adopt a fetched 200 snapshot. `writeRaced` = a write was in flight or
+ * finished while the fetch ran: then a snapshot older than local data is stale (the
+ * write landed after the server read) and is ignored. Otherwise the server is the
+ * truth, even if its version went backwards (DB recreated).
+ */
+export function acceptFetched(
+  localVersion: number | null,
+  fetchedVersion: number,
+  writeRaced: boolean,
+): boolean {
+  return localVersion === null || !writeRaced || fetchedVersion >= localVersion;
 }
 
 export interface SyncGate {

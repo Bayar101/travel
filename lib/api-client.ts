@@ -1,8 +1,7 @@
 "use client";
 
-import { del } from "idb-keyval";
 import { pruneDeleted } from "./cascade";
-import { applyWrite, isOnline } from "./store";
+import { applyWrite, beginWrite, clearCache, isOnline } from "./store";
 import type { DayItem, Resource, TripData } from "./types";
 
 type Row = { id: string };
@@ -11,6 +10,15 @@ const OFFLINE = "You're offline";
 
 async function request<T>(path: string, method: string, body?: unknown): Promise<T> {
   if (!isOnline()) throw new Error(OFFLINE);
+  const done = beginWrite(); // syncs finishing meanwhile must not adopt a stale snapshot
+  try {
+    return await send<T>(path, method, body);
+  } finally {
+    done();
+  }
+}
+
+async function send<T>(path: string, method: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
@@ -82,7 +90,7 @@ export async function reorderItems(dayId: string, ids: string[]): Promise<void> 
 
 export async function logout(): Promise<void> {
   await request<void>("/api/logout", "POST"); // throws offline/failure: keep the offline cache
-  await del("trip-data-v1").catch(() => {});
+  await clearCache();
   window.location.replace("/login");
 }
 
