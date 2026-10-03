@@ -5,6 +5,7 @@ import Header from "./Header";
 import CategoriesView from "./views/CategoriesView";
 import LocationDetailView from "./views/LocationDetailView";
 import LocationsView from "./views/LocationsView";
+import StaysView from "./views/StaysView";
 import OfflineBadge from "./OfflineBadge";
 import { ToastProvider } from "./Toast";
 import { useRoute, type Route } from "@/lib/router";
@@ -62,7 +63,7 @@ function View({ route }: { route: Route }) {
     case "categories":
       return <CategoriesView />;
     case "stays":
-      return <Placeholder title="Stays" />;
+      return <StaysView />;
   }
 }
 
