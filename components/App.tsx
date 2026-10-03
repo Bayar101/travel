@@ -2,6 +2,9 @@
 
 import BottomNav from "./BottomNav";
 import Header from "./Header";
+import CategoriesView from "./views/CategoriesView";
+import LocationDetailView from "./views/LocationDetailView";
+import LocationsView from "./views/LocationsView";
 import OfflineBadge from "./OfflineBadge";
 import { ToastProvider } from "./Toast";
 import { useRoute, type Route } from "@/lib/router";
@@ -53,11 +56,11 @@ function View({ route }: { route: Route }) {
     case "day":
       return <Placeholder title="Day" back />;
     case "locations":
-      return <Placeholder title="Locations" />;
+      return <LocationsView />;
     case "location":
-      return <Placeholder title="Location" back />;
+      return <LocationDetailView id={route.id} />;
     case "categories":
-      return <Placeholder title="Categories" back />;
+      return <CategoriesView />;
     case "stays":
       return <Placeholder title="Stays" />;
   }
