@@ -1,3 +1,4 @@
+import { addDays } from "./stay-dates";
 import { isAirbnbUrl } from "./validation";
 import type { Stay } from "./types";
 
@@ -21,6 +22,11 @@ export function validateStayForm(v: StayFormValues): StayFormErrors {
   if (!v.check_out) e.check_out = "Check-out is required";
   else if (v.check_in && v.check_out <= v.check_in) e.check_out = "Check-out must be after check-in";
   return e;
+}
+
+/** Set check-in; an empty check-out is prefilled with the next day (one night). */
+export function withCheckIn(v: StayFormValues, check_in: string): StayFormValues {
+  return { ...v, check_in, check_out: !v.check_out && check_in ? addDays(check_in, 1) : v.check_out };
 }
 
 // Call only after validateStayForm returned no errors.

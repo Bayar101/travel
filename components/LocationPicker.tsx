@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import LocationForm from "@/components/forms/LocationForm";
+import Button from "@/components/ui/Button";
 import { filterLocations, locationById } from "@/lib/selectors";
 import { useTrip } from "@/lib/store";
 import type { Location, LocationType } from "@/lib/types";
@@ -18,9 +20,10 @@ export default function LocationPicker({
   onPick: (location: Location) => void;
   filter?: (location: Location) => boolean;
 }) {
-  const { data } = useTrip();
+  const { data, online } = useTrip();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<LocationType | undefined>();
+  const [creating, setCreating] = useState(false);
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -59,6 +62,9 @@ export default function LocationPicker({
           </button>
         ))}
       </div>
+      <Button variant="secondary" className="w-full" disabled={!online} onClick={() => setCreating(true)}>
+        + New location
+      </Button>
       {rows.length === 0 ? (
         <p className="py-6 text-center text-base text-zinc-400">No locations found</p>
       ) : (
@@ -89,6 +95,8 @@ export default function LocationPicker({
           })}
         </ul>
       )}
+      {/* Nested sheet; a created location is picked right away. */}
+      <LocationForm open={creating} prefill={{ type }} onClose={() => setCreating(false)} onSaved={onPick} />
     </div>
   );
 }

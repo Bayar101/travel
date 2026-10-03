@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
-import { TextArea, TimeField } from "@/components/ui/fields";
+import { FormError, TextArea, TimeField } from "@/components/ui/fields";
 import Sheet from "@/components/ui/Sheet";
 import LocationPicker from "@/components/LocationPicker";
 import { useToast } from "@/components/Toast";
@@ -38,6 +38,10 @@ function Body({
 
   if (!data) return null;
 
+  const edit = (f: (p: ItemFormValues) => ItemFormValues) => {
+    setV(f);
+    setError(null); // stale server error
+  };
   const loc = locationById(data, v.location_id || null);
   const isLocation = v.mode === "location";
 
@@ -74,16 +78,19 @@ function Body({
         onClose={busy ? () => {} : onClose}
         footer={
           choosing ? undefined : (
-          <div className="flex gap-2">
-            {item && (
-              <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
-                Delete
+          <>
+            <FormError error={error} />
+            <div className="flex gap-2">
+              {item && (
+                <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
+                  Delete
+                </Button>
+              )}
+              <Button type="submit" form="item-form" className="flex-1" disabled={!online} loading={busy}>
+                Save
               </Button>
-            )}
-            <Button type="submit" form="item-form" className="flex-1" disabled={!online} loading={busy}>
-              Save
-            </Button>
-          </div>
+            </div>
+          </>
           )
         }
       >
@@ -133,29 +140,24 @@ function Body({
               )}
             </div>
           )}
-          <TimeField label="Time (optional)" value={v.time} onChange={(x) => setV((p) => ({ ...p, time: x }))} />
+          <TimeField label="Time (optional)" value={v.time} onChange={(x) => edit((p) => ({ ...p, time: x }))} />
           <TextArea
             label={isLocation ? "Note (optional)" : "Note"}
             value={v.note}
             onChange={(x) => {
-              setV((p) => ({ ...p, note: x }));
+              edit((p) => ({ ...p, note: x }));
               setErrors((p) => ({ ...p, note: undefined }));
             }}
             error={errors.note}
             placeholder="Transport, weather warnings…"
           />
-          {error && (
-            <p role="alert" className="text-base text-red-400">
-              {error}
-            </p>
-          )}
         </form>
         )}
       </Sheet>
       <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)} autoFocus>
         <LocationPicker
           onPick={(l) => {
-            setV((p) => ({ ...p, location_id: l.id }));
+            edit((p) => ({ ...p, location_id: l.id }));
             setErrors((p) => ({ ...p, location_id: undefined }));
             setPicking(false);
           }}

@@ -3,13 +3,15 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
-import { DateField, TextField } from "@/components/ui/fields";
+import { DateField, FormError, TextField } from "@/components/ui/fields";
 import Sheet from "@/components/ui/Sheet";
 import LocationPicker from "@/components/LocationPicker";
 import { useToast } from "@/components/Toast";
 import { create, remove, update } from "@/lib/api-client";
 import { locationById } from "@/lib/selectors";
-import { stayPayload, stayToForm, validateStayForm, type StayFormErrors, type StayFormValues } from "@/lib/stay-form";
+import {
+  stayPayload, stayToForm, validateStayForm, withCheckIn, type StayFormErrors, type StayFormValues,
+} from "@/lib/stay-form";
 import { useTrip } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 
@@ -27,7 +29,12 @@ function Body({ stay, onClose }: { stay?: Stay; onClose: () => void }) {
 
   if (!data) return null;
 
-  const set = <K extends keyof StayFormValues>(k: K, val: StayFormValues[K]) => setV((p) => ({ ...p, [k]: val }));
+  // Any edit clears a stale server error (e.g. 409 overlap after changing dates).
+  const edit = (f: (p: StayFormValues) => StayFormValues) => {
+    setV(f);
+    setError(null);
+  };
+  const set = <K extends keyof StayFormValues>(k: K, val: StayFormValues[K]) => edit((p) => ({ ...p, [k]: val }));
   const loc = locationById(data, v.location_id || null);
 
   async function save() {
@@ -56,16 +63,19 @@ function Body({ stay, onClose }: { stay?: Stay; onClose: () => void }) {
         title={stay ? "Edit stay" : "New stay"}
         onClose={busy ? () => {} : onClose}
         footer={
-          <div className="flex gap-2">
-            {stay && (
-              <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
-                Delete
+          <>
+            <FormError error={error} />
+            <div className="flex gap-2">
+              {stay && (
+                <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
+                  Delete
+                </Button>
+              )}
+              <Button type="submit" form="stay-form" className="flex-1" disabled={!online} loading={busy}>
+                Save
               </Button>
-            )}
-            <Button type="submit" form="stay-form" className="flex-1" disabled={!online} loading={busy}>
-              Save
-            </Button>
-          </div>
+            </div>
+          </>
         }
       >
         <form
@@ -115,19 +125,20 @@ function Body({ stay, onClose }: { stay?: Stay; onClose: () => void }) {
             autoComplete="off"
             spellCheck={false}
           />
-          <DateField label="Check-in" value={v.check_in} onChange={(x) => set("check_in", x)} error={errors.check_in} />
-          <DateField label="Check-out" value={v.check_out} onChange={(x) => set("check_out", x)} error={errors.check_out} />
-          {error && (
-            <p role="alert" className="text-base text-red-400">
-              {error}
-            </p>
-          )}
+          <DateField label="Check-in" value={v.check_in} onChange={(x) => edit((p) => withCheckIn(p, x))} error={errors.check_in} />
+          <DateField
+            label="Check-out"
+            value={v.check_out}
+            min={v.check_in || undefined}
+            onChange={(x) => set("check_out", x)}
+            error={errors.check_out}
+          />
         </form>
       </Sheet>
       <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)} autoFocus>
         <LocationPicker
           onPick={(l) => {
-            setV((p) => ({ ...p, location_id: l.id, name: p.name.trim() ? p.name : l.name }));
+            edit((p) => ({ ...p, location_id: l.id, name: p.name.trim() ? p.name : l.name }));
             setErrors((p) => ({ ...p, location_id: undefined, ...(v.name.trim() ? {} : { name: undefined }) }));
             setPicking(false);
           }}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
-import { DateField, TextArea, TextField } from "@/components/ui/fields";
+import { DateField, FormError, TextArea, TextField } from "@/components/ui/fields";
 import Sheet from "@/components/ui/Sheet";
 import { useToast } from "@/components/Toast";
 import { create, update } from "@/lib/api-client";
@@ -25,7 +25,10 @@ function Body({ day, onClose, onDelete }: { day?: Day; onClose: () => void; onDe
 
   if (!data) return null;
 
-  const set = <K extends keyof DayFormValues>(k: K, val: DayFormValues[K]) => setV((p) => ({ ...p, [k]: val }));
+  const set = <K extends keyof DayFormValues>(k: K, val: DayFormValues[K]) => {
+    setV((p) => ({ ...p, [k]: val }));
+    setError(null); // stale server error (e.g. duplicate date)
+  };
   const n = day ? deleteImpact(data, "days", day.id).items : 0;
 
   async function save() {
@@ -54,16 +57,19 @@ function Body({ day, onClose, onDelete }: { day?: Day; onClose: () => void; onDe
         title={day ? "Edit day" : "New day"}
         onClose={busy ? () => {} : onClose}
         footer={
-          <div className="flex gap-2">
-            {day && onDelete && (
-              <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
-                Delete
+          <>
+            <FormError error={error} />
+            <div className="flex gap-2">
+              {day && onDelete && (
+                <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
+                  Delete
+                </Button>
+              )}
+              <Button type="submit" form="day-form" className="flex-1" disabled={!online} loading={busy}>
+                Save
               </Button>
-            )}
-            <Button type="submit" form="day-form" className="flex-1" disabled={!online} loading={busy}>
-              Save
-            </Button>
-          </div>
+            </div>
+          </>
         }
       >
         <form
@@ -78,11 +84,6 @@ function Body({ day, onClose, onDelete }: { day?: Day; onClose: () => void; onDe
           <DateField label="Date" value={v.date} onChange={(x) => set("date", x)} error={errors.date} />
           <TextField label="Title" value={v.title} onChange={(x) => set("title", x)} placeholder="Tokyo arrival" autoComplete="off" />
           <TextArea label="Note" value={v.note} onChange={(x) => set("note", x)} placeholder="Weather, transport, reminders…" />
-          {error && (
-            <p role="alert" className="text-base text-red-400">
-              {error}
-            </p>
-          )}
         </form>
       </Sheet>
       {day && onDelete && (

@@ -147,3 +147,13 @@ export function NumberField({
     </Field>
   );
 }
+
+/** Submit/server error, rendered in the sheet footer above the buttons so it stays visible with the keyboard open. */
+export function FormError({ error }: { error: string | null }) {
+  if (!error) return null;
+  return (
+    <p role="alert" className="mb-2 text-base text-red-400">
+      {error}
+    </p>
+  );
+}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
-import { TextField } from "@/components/ui/fields";
+import { FormError, TextField } from "@/components/ui/fields";
 import Sheet from "@/components/ui/Sheet";
 import { useToast } from "@/components/Toast";
 import { create, remove, update } from "@/lib/api-client";
@@ -28,6 +28,11 @@ function Body({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  const edit = (setter: (x: string) => void) => (x: string) => {
+    setter(x);
+    setError(null); // stale server error (e.g. duplicate name)
+  };
 
   async function save() {
     if (busy) return;
@@ -58,16 +63,19 @@ function Body({
         title={category ? "Edit category" : "New category"}
         onClose={busy ? () => {} : onClose}
         footer={
-          <div className="flex gap-2">
-            {category && (
-              <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
-                Delete
+          <>
+            <FormError error={error} />
+            <div className="flex gap-2">
+              {category && (
+                <Button variant="secondary" disabled={!online || busy} onClick={() => setConfirming(true)}>
+                  Delete
+                </Button>
+              )}
+              <Button type="submit" form="category-form" className="flex-1" disabled={!online} loading={busy}>
+                Save
               </Button>
-            )}
-            <Button type="submit" form="category-form" className="flex-1" disabled={!online} loading={busy}>
-              Save
-            </Button>
-          </div>
+            </div>
+          </>
         }
       >
         <form
@@ -78,13 +86,8 @@ function Body({
           }}
           className="space-y-3"
         >
-          <TextField label="Name" value={name} onChange={setName} error={nameError} autoComplete="off" />
-          <TextField label="Emoji (optional)" value={emoji} onChange={setEmoji} maxLength={8} autoComplete="off" />
-          {error && (
-            <p role="alert" className="text-base text-red-400">
-              {error}
-            </p>
-          )}
+          <TextField label="Name" value={name} onChange={edit(setName)} error={nameError} autoComplete="off" />
+          <TextField label="Emoji (optional)" value={emoji} onChange={edit(setEmoji)} maxLength={16} autoComplete="off" />
         </form>
       </Sheet>
       {category && (

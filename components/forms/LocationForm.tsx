@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import Button from "@/components/ui/Button";
-import { SelectField, TextArea, TextField, NumberField } from "@/components/ui/fields";
+import { FormError, SelectField, TextArea, TextField, NumberField } from "@/components/ui/fields";
 import Sheet from "@/components/ui/Sheet";
 import { useToast } from "@/components/Toast";
 import CategoryForm from "./CategoryForm";
@@ -56,8 +56,10 @@ function Body({
 
   if (!data) return null;
 
-  const set = <K extends keyof LocationFormValues>(k: K, val: LocationFormValues[K]) =>
+  const set = <K extends keyof LocationFormValues>(k: K, val: LocationFormValues[K]) => {
     setV((p) => ({ ...p, [k]: val }));
+    setError(null); // stale server error
+  };
 
   const typeLocked = !!location && location.type === "area" && placesInArea(data, location.id).length > 0;
   const areas = data.locations.filter((l) => l.type === "area" && l.id !== location?.id);
@@ -115,9 +117,12 @@ function Body({
         title={location ? "Edit location" : "New location"}
         onClose={busy ? () => {} : onClose}
         footer={
-          <Button type="submit" form="location-form" className="w-full" disabled={!online} loading={busy}>
-            Save
-          </Button>
+          <>
+            <FormError error={error} />
+            <Button type="submit" form="location-form" className="w-full" disabled={!online} loading={busy}>
+              Save
+            </Button>
+          </>
         }
       >
         <form
@@ -169,7 +174,7 @@ function Body({
           <TextField
             label="Emoji"
             value={v.emoji}
-            maxLength={8}
+            maxLength={16}
             error={errors.emoji}
             autoComplete="off"
             onChange={(x) => {
@@ -208,11 +213,6 @@ function Body({
             <NumberField label="Latitude" value={v.lat} onChange={(x) => set("lat", x)} error={errors.lat} />
             <NumberField label="Longitude" value={v.lng} onChange={(x) => set("lng", x)} error={errors.lng} />
           </div>
-          {error && (
-            <p role="alert" className="text-base text-red-400">
-              {error}
-            </p>
-          )}
         </form>
       </Sheet>
       <CategoryForm

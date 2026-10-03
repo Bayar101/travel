@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDay, formatStayRange, isCurrentStay, nightsBetween } from "./stay-dates";
+import { addDays, formatDay, formatStayRange, isCurrentStay, nightsBetween } from "./stay-dates";
 
 describe("stay-dates", () => {
   it("formats a day without UTC shift", () => {
@@ -25,5 +25,14 @@ describe("stay-dates", () => {
     expect(isCurrentStay(s, "2026-10-10")).toBe(true);
     expect(isCurrentStay(s, "2026-10-12")).toBe(true);
     expect(isCurrentStay(s, "2026-10-13")).toBe(false);
+  });
+});
+
+describe("addDays", () => {
+  it("adds across month/year ends and leap day", () => {
+    expect(addDays("2026-10-10", 1)).toBe("2026-10-11");
+    expect(addDays("2026-10-31", 1)).toBe("2026-11-01");
+    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addDays("2028-02-28", 1)).toBe("2028-02-29");
   });
 });

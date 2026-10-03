@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stayPayload, stayToForm, validateStayForm, type StayFormValues } from "./stay-form";
+import { stayPayload, stayToForm, validateStayForm, withCheckIn, type StayFormValues } from "./stay-form";
 
 const ok: StayFormValues = {
   location_id: "l1", name: " Inn ", airbnb_url: " https://www.airbnb.com/rooms/1 ",
@@ -30,5 +30,18 @@ describe("stay-form", () => {
   it("stayToForm roundtrip", () => {
     const s = { id: "s", location_id: "l1", name: "Inn", airbnb_url: "u", check_in: "a", check_out: "b" };
     expect(stayToForm(s)).toEqual({ location_id: "l1", name: "Inn", airbnb_url: "u", check_in: "a", check_out: "b" });
+  });
+});
+
+describe("withCheckIn", () => {
+  const empty: StayFormValues = { ...ok, check_in: "", check_out: "" };
+  it("prefills check-out = check-in + 1 when empty", () => {
+    expect(withCheckIn(empty, "2026-10-31")).toMatchObject({ check_in: "2026-10-31", check_out: "2026-11-01" });
+  });
+  it("keeps an existing check-out", () => {
+    expect(withCheckIn(ok, "2026-10-11")).toMatchObject({ check_in: "2026-10-11", check_out: "2026-10-13" });
+  });
+  it("clearing check-in leaves check-out empty", () => {
+    expect(withCheckIn(empty, "")).toMatchObject({ check_in: "", check_out: "" });
   });
 });
