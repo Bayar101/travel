@@ -5,7 +5,7 @@ import Header from "./Header";
 import OfflineBadge from "./OfflineBadge";
 import { ToastProvider } from "./Toast";
 import { useRoute, type Route } from "@/lib/router";
-import { useTrip } from "@/lib/store";
+import { sync, useTrip } from "@/lib/store";
 
 function Placeholder({ title, back }: { title: string; back?: boolean }) {
   return (
@@ -23,6 +23,23 @@ function Skeleton() {
       {[0, 1, 2, 3].map((i) => (
         <div key={i} className="h-20 animate-pulse rounded-xl bg-zinc-900" />
       ))}
+    </div>
+  );
+}
+
+function LoadError({ online }: { online: boolean }) {
+  return (
+    <div className="space-y-4 p-6 text-center">
+      <p className="text-zinc-100">
+        {online ? "Couldn't load your trip." : "You're offline and nothing is saved on this device yet."}
+      </p>
+      <button
+        type="button"
+        onClick={() => void sync({ force: true })}
+        className="min-h-11 rounded-xl bg-red-500 px-6 text-base font-medium text-white active:bg-red-600"
+      >
+        Retry
+      </button>
     </div>
   );
 }
@@ -46,15 +63,15 @@ function View({ route }: { route: Route }) {
 }
 
 export default function App() {
-  const { data, online } = useTrip();
+  const { data, online, error } = useTrip();
   const route = useRoute();
 
   return (
     <ToastProvider>
       <div className="mx-auto min-h-dvh max-w-md pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
-        {data ? <View route={route} /> : <Skeleton />}
+        {!online && <OfflineBadge />}
+        {data ? <View route={route} /> : error ? <LoadError online={online} /> : <Skeleton />}
       </div>
-      {!online && <OfflineBadge />}
       <BottomNav route={route} />
     </ToastProvider>
   );

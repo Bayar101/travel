@@ -21,8 +21,9 @@ async function request<T>(path: string, method: string, body?: unknown): Promise
   } catch {
     throw new Error(OFFLINE);
   }
-  if (res.status === 401 && typeof window !== "undefined") {
+  if (res.status === 401) {
     window.location.replace("/login");
+    return new Promise<T>(() => {}); // page is navigating away; never settle
   }
   if (res.status === 204) return undefined as T;
   const json = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -52,14 +53,14 @@ export async function update<T extends Row>(
   body: Partial<Omit<T, "id">>,
 ): Promise<T> {
   const { row, version } = await request<{ row: T; version: number }>(
-    `/api/${resource}/${id}`, "PATCH", body,
+    `/api/${resource}/${encodeURIComponent(id)}`, "PATCH", body,
   );
   applyWrite(upsert(resource, row), version);
   return row;
 }
 
 export async function remove(resource: Resource, id: string): Promise<void> {
-  const { version } = await request<{ version: number }>(`/api/${resource}/${id}`, "DELETE", {
+  const { version } = await request<{ version: number }>(`/api/${resource}/${encodeURIComponent(id)}`, "DELETE", {
     confirm: "delete me",
   });
   applyWrite((d) => pruneDeleted(d, resource, id), version);
@@ -80,8 +81,8 @@ export async function reorderItems(dayId: string, ids: string[]): Promise<void> 
 }
 
 export async function logout(): Promise<void> {
-  await request<void>("/api/logout", "POST");
   await del("trip-data-v1").catch(() => {});
+  await request<void>("/api/logout", "POST");
   window.location.replace("/login");
 }
 

@@ -3,6 +3,7 @@
 import { get, set } from "idb-keyval";
 import { useEffect, useSyncExternalStore } from "react";
 import { etagFor } from "./etag";
+import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, type SyncGate } from "./sync-logic";
 import type { TripData } from "./types";
 
 const IDB_KEY = "trip-data-v1";
@@ -12,19 +13,19 @@ export interface TripState {
   data: TripData | null;
   online: boolean;
   loading: boolean;
+  error: boolean; // first load failed and nothing cached
 }
 
 interface Persisted {
   data: TripData;
-  etag: string;
 }
 
-const SERVER_STATE: TripState = { data: null, online: true, loading: true };
+const SERVER_STATE: TripState = { data: null, online: true, loading: true, error: false };
 
 let state: TripState = SERVER_STATE;
 let started = false;
 let lastSync = 0;
-let syncing: Promise<void> | null = null;
+let gate: SyncGate = IDLE_GATE;
 const listeners = new Set<() => void>();
 
 function setState(patch: Partial<TripState>): void {
@@ -33,7 +34,7 @@ function setState(patch: Partial<TripState>): void {
 }
 
 function persist(data: TripData): void {
-  const value: Persisted = { data, etag: etagFor(data.version) };
+  const value: Persisted = { data };
   set(IDB_KEY, value).catch(() => {});
 }
 
@@ -52,24 +53,35 @@ export function replaceData(data: TripData): void {
 }
 
 /**
- * Apply a server-confirmed write. If the returned version isn't exactly the next
- * one, other changes happened elsewhere: force a refetch to catch up.
+ * Apply a server-confirmed write. On a version gap the row change is applied but the
+ * local version is kept, so the forced refetch gets a 200 (not 304).
  */
 export function applyWrite(update: (d: TripData) => TripData, version: number): void {
   const cur = state.data;
   if (!cur) return;
-  replaceData({ ...update(cur), version });
-  if (version !== cur.version + 1) void sync({ force: true });
+  const plan = planWrite(cur.version, version);
+  replaceData({ ...update(cur), version: plan.version });
+  if (plan.refetch) void sync({ force: true });
 }
 
 export function sync(opts: { force?: boolean } = {}): Promise<void> {
-  if (syncing) return syncing;
-  if (!state.online) return Promise.resolve();
-  if (!opts.force && Date.now() - lastSync < MIN_SYNC_MS) return Promise.resolve();
-  syncing = doSync().finally(() => {
-    syncing = null;
+  const r = requestSync(gate, {
+    force: !!opts.force,
+    online: state.online,
+    lastSync,
+    now: Date.now(),
+    minMs: MIN_SYNC_MS,
   });
-  return syncing;
+  gate = r.gate;
+  if (!r.start) return Promise.resolve();
+  return run();
+}
+
+async function run(): Promise<void> {
+  await doSync();
+  const f = finishSync(gate);
+  gate = f.gate;
+  if (f.followUp) await sync({ force: true });
 }
 
 async function doSync(): Promise<void> {
@@ -81,10 +93,15 @@ async function doSync(): Promise<void> {
       window.location.replace("/login");
       return;
     }
-    lastSync = Date.now();
-    if (res.status === 200) replaceData((await res.json()) as TripData);
+    if (res.status === 200 || res.status === 304) lastSync = Date.now();
+    if (res.status === 200) {
+      const fetched = (await res.json()) as TripData;
+      if (acceptFetched(state.data?.version ?? null, fetched.version)) replaceData(fetched);
+    }
   } catch {
     // network failure: keep cached data
+  } finally {
+    setState({ error: !state.data });
   }
 }
 
