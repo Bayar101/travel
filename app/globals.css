@@ -39,6 +39,21 @@ html {
 }
 @keyframes map-me-pulse { to { box-shadow: 0 0 0 16px #3b82f600; } }
 
+/* Map attribution: dark, compact "i" with a 44px hit area; when open it wraps short of the
+   locate button (bottom-right, 48px + 16px inset), so the two never overlap. */
+.maplibregl-ctrl-bottom-left > .maplibregl-ctrl-attrib.maplibregl-compact {
+  margin: 0 0 16px 16px; background: #18181be6; color: #d4d4d8; box-shadow: 0 0 0 1px #ffffff14;
+  max-width: calc(100vw - 112px); font-size: 12px; line-height: 18px;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
+  background-color: transparent; filter: invert(1) brightness(0.85);
+}
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button::after {
+  content: ""; position: absolute; inset: -10px;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact a { color: #e4e4e7; }
+
 /* Day detail prev/next: incoming day slides in from the side it came from. */
 @keyframes day-in-right { from { opacity: 0; transform: translateX(32px); } }
 @keyframes day-in-left { from { opacity: 0; transform: translateX(-32px); } }
+.maplibregl-ctrl-attrib-button:focus:not(:focus-visible) { box-shadow: none; }

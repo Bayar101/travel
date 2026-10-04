@@ -4,19 +4,18 @@ import { useState } from "react";
 import LocationForm from "@/components/forms/LocationForm";
 import Header from "@/components/Header";
 import LocationRow from "@/components/LocationRow";
+import PlannedOnList from "@/components/PlannedOnList";
 import { useToast } from "@/components/Toast";
 import Button from "@/components/ui/Button";
 import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
 import DirectionsButton from "@/components/ui/DirectionsButton";
 import EmptyState from "@/components/ui/EmptyState";
 import { ChevronRightIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
-import { CARD, CARD_BUTTON, CHIP, SECTION_HEADING } from "@/components/ui/styles";
+import { CARD_BUTTON, CHIP, SECTION_HEADING } from "@/components/ui/styles";
 import { remove } from "@/lib/api-client";
-import { plannedOn } from "@/lib/map-data";
 import { goBack, navigate } from "@/lib/router";
 import { categoryById, deleteImpact, locationById, placesInArea } from "@/lib/selectors";
 import { useTrip } from "@/lib/store";
-import { dateBlock, dayNumber } from "@/lib/trip";
 
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const openLocation = (id: string) => navigate(`/location/${encodeURIComponent(id)}`);
@@ -44,8 +43,6 @@ export default function LocationDetailView({ id }: { id: string }) {
   const cat = categoryById(data, l.category_id);
   const parent = l.type === "place" ? locationById(data, l.parent_id) : undefined;
   const places = l.type === "area" ? placesInArea(data, l.id) : [];
-  const planned = plannedOn(data, l.id);
-  const firstDate = data.days.reduce<string | null>((m, d) => (m === null || d.date < m ? d.date : m), null);
   const impact = deleteImpact(data, "locations", l.id);
   const impactText = [
     impact.places && plural(impact.places, "place"),
@@ -95,38 +92,7 @@ export default function LocationDetailView({ id }: { id: string }) {
 
         <section className="space-y-2" aria-labelledby="planned-on">
           <h3 id="planned-on" className={SECTION_HEADING}>Planned on</h3>
-          {planned.length === 0 ? (
-            <p className={`px-4 py-3 text-base text-zinc-400 ${CARD}`}>Not on any day yet</p>
-          ) : (
-            <ul className={`divide-y divide-white/5 overflow-hidden ${CARD}`}>
-              {planned.map(({ day, item }) => {
-                const b = dateBlock(day.date);
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/day/${encodeURIComponent(day.id)}`)}
-                      className="flex min-h-16 w-full items-center gap-3 px-3 py-2 text-left transition-colors active:bg-zinc-800"
-                    >
-                      <span aria-hidden="true" className="flex w-11 shrink-0 flex-col items-center rounded-xl bg-zinc-800 py-1">
-                        <span className="text-xs font-semibold uppercase text-zinc-400">{b.weekday}</span>
-                        <span className="text-lg font-bold leading-6 tabular-nums text-zinc-100">{b.day}</span>
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm text-zinc-400">
-                          {firstDate ? `Day ${dayNumber(firstDate, day.date)} · ` : ""}
-                          <span className="sr-only">{`${b.weekday} ${b.day} ${b.month} · `}</span>
-                          {item.time ?? "Anytime"}
-                        </span>
-                        <span className="block truncate text-base text-zinc-100">{day.title || `${b.weekday} ${b.day} ${b.month}`}</span>
-                      </span>
-                      <ChevronRightIcon size={20} className="text-zinc-500" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <PlannedOnList data={data} locationId={l.id} />
         </section>
 
         {l.type === "area" && (

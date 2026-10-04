@@ -4,12 +4,14 @@ import { useEffect, useRef } from "react";
 import { useTrip } from "@/lib/store";
 import { navigate } from "@/lib/router";
 import { categoryById, locationById, placesInArea } from "@/lib/selectors";
-import { plannedOn } from "@/lib/map-data";
 import type { Location } from "@/lib/types";
+import PlannedOnList from "@/components/PlannedOnList";
 import Sheet from "@/components/ui/Sheet";
 import DirectionsButton from "@/components/ui/DirectionsButton";
+import { ChevronRightIcon } from "@/components/ui/icons";
+import { CARD, CARD_BUTTON, CHIP, EMOJI_TILE, SECTION_HEADING } from "@/components/ui/styles";
 
-const ROW = "min-h-11 w-full text-left text-base active:bg-zinc-800";
+const AREA_CHIP = "inline-flex items-center rounded-full bg-red-500/15 px-2.5 py-0.5 text-sm text-red-300";
 
 export default function PinCard({
   location: l,
@@ -33,16 +35,15 @@ export default function PinCard({
   const cat = categoryById(data, l.category_id);
   const parent = l.parent_id ? locationById(data, l.parent_id) : undefined;
   const places = l.type === "area" ? placesInArea(data, l.id) : [];
-  const planned = plannedOn(data, l.id);
 
   return (
     <Sheet
       open
       onClose={onClose}
-      title={`${l.emoji} ${l.name}`}
+      title={l.name}
       footer={
-        <div className="flex gap-3">
-          <DirectionsButton lat={l.lat} lng={l.lng} full />
+        <div className="flex gap-2">
+          <DirectionsButton lat={l.lat} lng={l.lng} full className="flex-1" />
           <button
             type="button"
             className="min-h-11 flex-1 rounded-xl bg-red-500 px-4 text-base font-medium text-white active:bg-red-600"
@@ -54,39 +55,45 @@ export default function PinCard({
       }
     >
       <div ref={body} className="space-y-4">
-        <p className="text-sm text-zinc-400">
-          {l.type === "area" ? "Area" : "Place"} · {cat ? `${cat.emoji ?? ""} ${cat.name}`.trim() : "Uncategorized"} · {l.city}
-        </p>
+        <div className="flex items-center gap-3">
+          <span aria-hidden="true" className={EMOJI_TILE}>{l.emoji}</span>
+          <div className="flex min-w-0 flex-wrap gap-1.5">
+            <span className={l.type === "area" ? AREA_CHIP : CHIP}>{l.type === "area" ? "Area" : "Place"}</span>
+            {cat && <span className={CHIP}>{cat.emoji ? `${cat.emoji} ${cat.name}` : cat.name}</span>}
+            <span className={CHIP}>{l.city}</span>
+          </div>
+        </div>
         {parent && (
-          <button type="button" className={`${ROW} text-red-400`} onClick={() => onSelect(parent.id)}>
-            In {parent.emoji} {parent.name}
+          <button type="button" onClick={() => onSelect(parent.id)} className={`flex min-h-14 w-full items-center gap-3 px-3 ${CARD_BUTTON}`}>
+            <span aria-hidden="true" className="text-2xl">{parent.emoji}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm text-zinc-400">In area</span>
+              <span className="block truncate text-base font-medium text-zinc-100">{parent.name}</span>
+            </span>
+            <ChevronRightIcon size={20} className="text-zinc-500" />
           </button>
         )}
-        {l.description && <p className="text-base whitespace-pre-wrap text-zinc-200">{l.description}</p>}
-        <section>
-          <h3 className="mb-1 text-sm font-semibold text-zinc-400">Planned on</h3>
-          {planned.length ? (
-            <ul>
-              {planned.map((r) => (
-                <li key={r.item.id}>
-                  <button type="button" className={ROW} onClick={() => navigate(`/day/${encodeURIComponent(r.day.id)}`)}>
-                    {r.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-base text-zinc-500">Not planned yet</p>
-          )}
+        {l.description && <p className="whitespace-pre-wrap break-words text-base text-zinc-200">{l.description}</p>}
+        <section className="space-y-2" aria-labelledby="pin-planned-on">
+          <h3 id="pin-planned-on" className={SECTION_HEADING}>Planned on</h3>
+          <PlannedOnList data={data} locationId={l.id} />
         </section>
         {places.length > 0 && (
-          <section>
-            <h3 className="mb-1 text-sm font-semibold text-zinc-400">Places here</h3>
-            <ul>
+          <section className="space-y-2" aria-labelledby="pin-places-here">
+            <h3 id="pin-places-here" className={SECTION_HEADING}>
+              Places here <span className="text-zinc-600">· {places.length}</span>
+            </h3>
+            <ul className={`divide-y divide-white/5 overflow-hidden ${CARD}`}>
               {places.map((p) => (
                 <li key={p.id}>
-                  <button type="button" className={ROW} onClick={() => onSelect(p.id)}>
-                    {p.emoji} {p.name}
+                  <button
+                    type="button"
+                    onClick={() => onSelect(p.id)}
+                    className="flex min-h-14 w-full items-center gap-3 px-3 py-1.5 text-left transition-colors active:bg-zinc-800"
+                  >
+                    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-xl">{p.emoji}</span>
+                    <span className="min-w-0 flex-1 truncate text-base text-zinc-100">{p.name}</span>
+                    <ChevronRightIcon size={20} className="text-zinc-500" />
                   </button>
                 </li>
               ))}

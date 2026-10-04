@@ -81,49 +81,54 @@ export default function MapView() {
     setSelectedId(id);
   }
 
+  // PinCard (a Sheet) renders outside the z-0 map layer: inside it, the bottom nav would cover its footer.
   return (
-    <div className="fixed inset-x-0 top-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-0 bg-zinc-950">
-      <MapErrorBoundary fallback={<MapLoadFailed online={online} />} onError={() => setCrashed(true)}>
-        <MapCanvas
-          locations={visible}
-          selectedId={selectedId}
-          fitKey={sel}
-          onSelect={setSelectedId}
-          onUnavailable={(msg, retry) => setUnavailable(msg ? { msg, retry } : null)}
-          onMap={setMap}
-        />
-      </MapErrorBoundary>
-      <div className="pt-safe pointer-events-none absolute inset-x-0 top-0">
-        <CategoryChips chips={chips} value={sel} onChange={setSel} />
-        {!online && (
-          <p className="mx-4 mt-1 w-fit rounded-full bg-amber-950/90 px-3 py-1 text-sm text-amber-200">
-            Map offline — showing saved areas
-          </p>
-        )}
-      </div>
-      {!unavailable && !crashed && (
-        <div className="absolute right-4 bottom-4 z-10">
-          <MapErrorBoundary fallback={null}>
-            <LocateButton map={map} />
-          </MapErrorBoundary>
-        </div>
-      )}
-      {unavailable && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 p-8 text-center text-base text-zinc-300">
-          <p>{unavailable.msg}</p>
-          {unavailable.retry && (
-            <button
-              type="button"
-              disabled={!online}
-              onClick={unavailable.retry}
-              className="min-h-11 rounded-xl bg-zinc-800 px-6 text-base font-medium text-zinc-100 active:bg-zinc-700 disabled:opacity-40"
-            >
-              Retry
-            </button>
+    <>
+      <div className="fixed inset-x-0 top-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-0 bg-zinc-950">
+        <MapErrorBoundary fallback={<MapLoadFailed online={online} />} onError={() => setCrashed(true)}>
+          <MapCanvas
+            locations={visible}
+            selectedId={selectedId}
+            fitKey={sel}
+            onSelect={setSelectedId}
+            onUnavailable={(msg, retry) => setUnavailable(msg ? { msg, retry } : null)}
+            onMap={setMap}
+          />
+        </MapErrorBoundary>
+        {/* Scrim: chips stay legible over bright tiles/labels. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[calc(5.5rem+env(safe-area-inset-top))] bg-linear-to-b from-zinc-950/85 via-zinc-950/40 to-transparent" />
+        <div className="pt-safe pointer-events-none absolute inset-x-0 top-0">
+          <CategoryChips chips={chips} value={sel} onChange={setSel} />
+          {!online && (
+            <p className="mx-4 mt-1 w-fit rounded-full bg-amber-950/90 px-3 py-1 text-sm text-amber-200">
+              Map offline — showing saved areas
+            </p>
           )}
         </div>
-      )}
+        {!unavailable && !crashed && (
+          <div className="absolute right-4 bottom-4 z-10">
+            <MapErrorBoundary fallback={null}>
+              <LocateButton map={map} />
+            </MapErrorBoundary>
+          </div>
+        )}
+        {unavailable && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 p-8 text-center text-base text-zinc-300">
+            <p>{unavailable.msg}</p>
+            {unavailable.retry && (
+              <button
+                type="button"
+                disabled={!online}
+                onClick={unavailable.retry}
+                className="min-h-11 rounded-xl bg-zinc-800 px-6 text-base font-medium text-zinc-100 active:bg-zinc-700 disabled:opacity-40"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       {selected && <PinCard location={selected} onClose={() => setSelectedId(null)} onSelect={selectFromCard} />}
-    </div>
+    </>
   );
 }

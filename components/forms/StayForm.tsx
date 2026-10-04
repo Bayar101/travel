@@ -8,7 +8,9 @@ import Sheet from "@/components/ui/Sheet";
 import LocationPicker from "@/components/LocationPicker";
 import { useToast } from "@/components/Toast";
 import { create, remove, update } from "@/lib/api-client";
+import { BedIcon, ChevronRightIcon, PlusIcon } from "@/components/ui/icons";
 import { locationById } from "@/lib/selectors";
+import { formatStayRange, nightsBetween } from "@/lib/stay-dates";
 import {
   stayPayload, stayToForm, validateStayForm, withCheckIn, type StayFormErrors, type StayFormValues,
 } from "@/lib/stay-form";
@@ -36,6 +38,7 @@ function Body({ stay, onClose }: { stay?: Stay; onClose: () => void }) {
   };
   const set = <K extends keyof StayFormValues>(k: K, val: StayFormValues[K]) => edit((p) => ({ ...p, [k]: val }));
   const loc = locationById(data, v.location_id || null);
+  const nights = v.check_in && v.check_out ? nightsBetween(v.check_in, v.check_out) : 0;
 
   async function save() {
     if (busy) return;
@@ -92,18 +95,27 @@ function Body({ stay, onClose }: { stay?: Stay; onClose: () => void }) {
             <button
               type="button"
               onClick={() => setPicking(true)}
-              className={`flex min-h-11 w-full items-center gap-2 rounded-lg border bg-zinc-950 px-3 text-left text-base active:bg-zinc-800 ${
+              className={`flex min-h-14 w-full items-center gap-3 rounded-lg border bg-zinc-950 px-2 text-left text-base active:bg-zinc-800 ${
                 errors.location_id ? "border-red-500" : "border-zinc-800"
               }`}
             >
               {loc ? (
                 <>
-                  <span aria-hidden="true">{loc.emoji}</span>
-                  <span className="min-w-0 flex-1 truncate text-zinc-100">{loc.name}</span>
-                  <span className="text-sm text-zinc-400">Change</span>
+                  <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-xl">{loc.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-zinc-100">{loc.name}</span>
+                    <span className="block truncate text-sm text-zinc-400">{loc.city}</span>
+                  </span>
+                  <span className="pr-1 text-sm text-zinc-400">Change</span>
                 </>
               ) : (
-                <span className="text-zinc-400">Choose location</span>
+                <>
+                  <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-700 text-zinc-500">
+                    <PlusIcon size={20} />
+                  </span>
+                  <span className="flex-1 text-zinc-400">Choose location</span>
+                  <ChevronRightIcon size={20} className="mr-1 text-zinc-500" />
+                </>
               )}
             </button>
             {errors.location_id && (
@@ -125,14 +137,22 @@ function Body({ stay, onClose }: { stay?: Stay; onClose: () => void }) {
             autoComplete="off"
             spellCheck={false}
           />
-          <DateField label="Check-in" value={v.check_in} onChange={(x) => edit((p) => withCheckIn(p, x))} error={errors.check_in} />
-          <DateField
-            label="Check-out"
-            value={v.check_out}
-            min={v.check_in || undefined}
-            onChange={(x) => set("check_out", x)}
-            error={errors.check_out}
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <DateField label="Check-in" value={v.check_in} onChange={(x) => edit((p) => withCheckIn(p, x))} error={errors.check_in} />
+            <DateField
+              label="Check-out"
+              value={v.check_out}
+              min={v.check_in || undefined}
+              onChange={(x) => set("check_out", x)}
+              error={errors.check_out}
+            />
+          </div>
+          {nights > 0 && (
+            <p className="flex items-center gap-2 text-sm text-zinc-400">
+              <BedIcon size={18} className="text-zinc-500" />
+              {formatStayRange(v.check_in, v.check_out)}
+            </p>
+          )}
         </form>
       </Sheet>
       <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)} autoFocus>

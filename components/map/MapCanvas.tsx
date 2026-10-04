@@ -86,6 +86,14 @@ export default function MapCanvas({ locations, selectedId, fitKey, onSelect, onU
       return;
     }
     map.addControl(new AttributionControl({ compact: true }), "bottom-left");
+    // MapLibre opens compact attribution once it has text; start collapsed ("i" only) instead.
+    const collapseAttribution = () => {
+      const el = box.current?.querySelector(".maplibregl-ctrl-attrib.maplibregl-compact");
+      if (!el) return;
+      el.classList.remove("maplibregl-compact-show");
+      map.off("styledata", collapseAttribution);
+    };
+    map.on("styledata", collapseAttribution);
     mapRef.current = map;
     mapCbRef.current?.(map);
     map.on("moveend", () => {

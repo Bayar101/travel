@@ -177,3 +177,11 @@ export const LocateIcon = make(
 );
 
 export const CheckIcon = make("Check", <path d="m5 12.5 4.5 4.5L19 7.5" />);
+
+export const AlertIcon = make(
+  "Alert",
+  <>
+    <path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z" />
+    <path d="M12 9.5v4M12 17h.01" />
+  </>,
+);
