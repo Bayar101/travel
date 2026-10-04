@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AttributionControl, Map as MapLibreMap, Marker } from "maplibre-gl";
+import { AttributionControl, getVersion, Map as MapLibreMap, Marker, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Location } from "@/lib/types";
 import { boundsFor } from "@/lib/map-data";
 import { DEFAULT_CAMERA, loadCamera, saveCamera } from "@/lib/map-ui";
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+
+// Served from public/ (scripts/copy-maplibre-worker.mjs): Turbopack gives maplibre a file://
+// import.meta.url, so its own worker URL resolves to "". The worker imports the shared chunk next to it.
+const WORKER_DIR = `/maplibre/${getVersion()}`;
+export const MAPLIBRE_WORKER_FILES = [`${WORKER_DIR}/maplibre-gl-worker.mjs`, `${WORKER_DIR}/maplibre-gl-shared.mjs`];
 
 interface Props {
   locations: Location[];
@@ -60,6 +65,7 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
     if (!box.current) return;
     let map: MapLibreMap;
     try {
+      setWorkerUrl(MAPLIBRE_WORKER_FILES[0]);
       const cam = loadCamera();
       const b = cam ? null : boundsFor(seed.current);
       map = new MapLibreMap({
@@ -139,5 +145,11 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
-  return <div ref={box} className="absolute inset-0" />;
+  // MapLibre's (unlayered) CSS sets `.maplibregl-map { position: relative }`, which beats Tailwind's
+  // layered `absolute`; so the container only fills a positioned wrapper (else its height is 0).
+  return (
+    <div className="absolute inset-0">
+      <div ref={box} className="size-full" />
+    </div>
+  );
 }
