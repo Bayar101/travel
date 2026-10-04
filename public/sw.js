@@ -1,6 +1,6 @@
 // Bump VERSION on any change to this file or sw-map-cache.js; old caches are purged on activate.
 importScripts("/sw-map-cache.js");
-const VERSION = "v4";
+const VERSION = "v5";
 const STATIC = `trip-static-${VERSION}`;
 const PAGES = `trip-pages-${VERSION}`;
 const OTHER = `trip-other-${VERSION}`;
@@ -96,24 +96,35 @@ function storeMapLater(event, key, res) {
 
 const META_TIMEOUT_MS = 4000;
 
-// Style/TileJSON: network-first, but a slow or failing network falls back to the saved copy.
-// The cache write is chained into the fetch and registered with waitUntil up front, so a
-// late response (after the timeout already answered) is still saved.
+// Saved copy carries its fetch time, so a young one can be served without the network.
+function stamped(res) {
+  const headers = new Headers(res.headers);
+  headers.set(MAP.FETCHED_HEADER, String(Date.now()));
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+// Style/TileJSON: a saved copy younger than a day is served as-is (saves data). Otherwise
+// network-first, with a slow (> META_TIMEOUT_MS) or failing network falling back to the saved
+// copy. The cache write is chained into the fetch and registered with waitUntil up front, so
+// a late response (after the timeout already answered) is still saved.
 async function handleMeta(event, req, key) {
+  const cached = await (await caches.open(MAP.MAP_CACHE)).match(key);
+  if (cached && MAP.isFresh(Number(cached.headers.get(MAP.FETCHED_HEADER)), Date.now(), MAP.META_MAX_AGE_MS)) {
+    return cached;
+  }
   const network = fetch(req); // stays clean: a cache failure must never lose a good response
   // Registered first, so its clone runs before anything consumes the body.
-  const saved = network.then((res) => (MAP.mapCacheable(res) ? putMap(key, res.clone()) : null));
+  const saved = network.then((res) => (MAP.mapCacheable(res) ? putMap(key, stamped(res.clone())) : null));
   keep(event, () => saved);
   let timer;
   const timeout = new Promise((resolve) => (timer = setTimeout(() => resolve(null), META_TIMEOUT_MS)));
   try {
     const res = await Promise.race([network, timeout]);
     if (res && res.ok) return res;
-    const hit = await (await caches.open(MAP.MAP_CACHE)).match(key);
-    if (hit) return hit;
+    if (cached) return cached;
     return res || (await network);
   } catch {
-    return (await (await caches.open(MAP.MAP_CACHE)).match(key)) || Response.error();
+    return cached || Response.error();
   } finally {
     clearTimeout(timer);
   }

@@ -41,4 +41,15 @@ describe("sw-map-cache", () => {
     expect(mc.mapCacheable({ ok: true, type: "opaque" })).toBe(false);
     expect(mc.mapCacheable({ ok: false, type: "cors" })).toBe(false);
   });
+  it("treats saved style/TileJSON as fresh for under a day", () => {
+    const day = 24 * 3600 * 1000;
+    const now = 1_800_000_000_000;
+    expect(mc.META_MAX_AGE_MS).toBe(day);
+    expect(mc.isFresh(now - 1000, now, day)).toBe(true);
+    expect(mc.isFresh(now, now, day)).toBe(true);
+    expect(mc.isFresh(now - day + 1, now, day)).toBe(true);
+    expect(mc.isFresh(now - day, now, day)).toBe(false);
+    expect(mc.isFresh(now + 60_000, now, day)).toBe(false); // clock moved back: refetch
+    expect(mc.isFresh(NaN, now, day)).toBe(false); // saved before stamping existed
+  });
 });
