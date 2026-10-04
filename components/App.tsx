@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import BottomNav from "./BottomNav";
 import CategoriesView from "./views/CategoriesView";
 import DayDetailView from "./views/DayDetailView";
@@ -69,6 +69,15 @@ export default function App() {
   useEffect(() => {
     if (online) warmMapOnIdle();
   }, [online]);
+  // Freshness: cheap conditional fetch on every navigation (gate throttles to 30 s).
+  // Only on actual changes: startup does its own forced sync after reading the cache.
+  const routeKey = route.view + ("id" in route ? `:${route.id}` : "");
+  const lastRouteKey = useRef(routeKey);
+  useEffect(() => {
+    if (lastRouteKey.current === routeKey) return;
+    lastRouteKey.current = routeKey;
+    void sync();
+  }, [routeKey]);
 
   return (
     <ToastProvider>
