@@ -3,7 +3,7 @@
 import { del, get, set } from "idb-keyval";
 import { useEffect, useSyncExternalStore } from "react";
 import { etagFor } from "./etag";
-import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, SYNC_THROTTLE_MS, type SyncGate } from "./sync-logic";
+import { acceptFetched, finishSync, IDLE_GATE, lastSyncAfter, planWrite, requestSync, startupStamp, SYNC_THROTTLE_MS, type SyncGate, type SyncStamp } from "./sync-logic";
 import type { TripData } from "./types";
 
 const IDB_KEY = "trip-data-v1";
@@ -23,7 +23,7 @@ const SERVER_STATE: TripState = { data: null, online: true, loading: true, error
 
 let state: TripState = SERVER_STATE;
 let started = false;
-let lastSync = 0;
+let lastSync: SyncStamp = { at: 0, confirmed: false };
 let gate: SyncGate = IDLE_GATE;
 let writesInFlight = 0;
 let writeSeq = 0; // bumped when a write request settles
@@ -83,7 +83,7 @@ export function sync(opts: { force?: boolean } = {}): Promise<void> {
   const r = requestSync(gate, {
     force: !!opts.force,
     online: state.online,
-    lastSync,
+    lastSync: lastSync.at,
     now: Date.now(),
     minMs: SYNC_THROTTLE_MS,
   });
@@ -101,6 +101,7 @@ async function run(): Promise<void> {
 
 async function doSync(): Promise<void> {
   let redirecting = false;
+  let ok = false;
   const seqAtStart = writeSeq;
   try {
     const headers: Record<string, string> = {};
@@ -111,7 +112,7 @@ async function doSync(): Promise<void> {
       window.location.replace("/login");
       return;
     }
-    if (res.status === 200 || res.status === 304) lastSync = Date.now();
+    ok = res.status === 200 || res.status === 304;
     if (res.status === 200) {
       const fetched = (await res.json()) as TripData;
       const raced = writesInFlight > 0 || writeSeq !== seqAtStart;
@@ -120,6 +121,7 @@ async function doSync(): Promise<void> {
   } catch {
     // network failure: keep cached data
   } finally {
+    lastSync = lastSyncAfter(lastSync, ok, Date.now());
     if (!redirecting) setState({ error: !state.data });
   }
 }
@@ -144,7 +146,7 @@ function onOffline(): void {
 async function start(): Promise<void> {
   if (started) return;
   started = true;
-  lastSync = Date.now(); // startup forces its own sync below; throttle early route/focus syncs
+  lastSync = startupStamp(Date.now()); // startup forces its own sync below; throttle early route/focus syncs
   setState({ online: navigator.onLine });
   window.addEventListener("online", onOnline);
   window.addEventListener("offline", onOffline);

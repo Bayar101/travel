@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, showLoadError, SYNC_THROTTLE_MS } from "./sync-logic";
+import { acceptFetched, finishSync, IDLE_GATE, lastSyncAfter, planWrite, requestSync, showLoadError, startupStamp, SYNC_THROTTLE_MS } from "./sync-logic";
 
 const req = { force: false, online: true, lastSync: 0, now: 10_000_000, minMs: 300_000 };
 
@@ -53,14 +53,29 @@ describe("requestSync / finishSync", () => {
   });
 });
 
-describe("SYNC_THROTTLE_MS", () => {
-  const r = { ...req, minMs: SYNC_THROTTLE_MS };
-  it("is 30 s (route change / focus syncs are cheap 304s)", () => {
-    expect(SYNC_THROTTLE_MS).toBe(30_000);
+describe("throttle (SYNC_THROTTLE_MS)", () => {
+  const now = 10_000_000;
+  const due = (stamp: { at: number }, t: number) =>
+    requestSync(IDLE_GATE, { force: false, online: true, lastSync: stamp.at, now: t, minMs: SYNC_THROTTLE_MS }).start;
+
+  it("after a successful sync, focus/route syncs wait 30 s", () => {
+    const ok = lastSyncAfter(startupStamp(now), true, now);
+    expect(due(ok, now + 10_000)).toBe(false);
+    expect(due(ok, now + 29_999)).toBe(false);
+    expect(due(ok, now + 30_000)).toBe(true);
   });
-  it("skips within 30 s, starts after", () => {
-    expect(requestSync(IDLE_GATE, { ...r, lastSync: r.now - 29_999 }).start).toBe(false);
-    expect(requestSync(IDLE_GATE, { ...r, lastSync: r.now - 30_000 }).start).toBe(true);
+  it("startup stamp throttles early syncs before the forced startup sync", () => {
+    expect(due(startupStamp(now), now + 1000)).toBe(false);
+  });
+  it("failed startup sync does not block the next retry", () => {
+    const failed = lastSyncAfter(startupStamp(now), false, now + 500);
+    expect(due(failed, now + 1000)).toBe(true);
+  });
+  it("a failure after a success keeps the success time (no retry storm)", () => {
+    const ok = lastSyncAfter(startupStamp(now), true, now);
+    const failed = lastSyncAfter(ok, false, now + 5000);
+    expect(failed).toEqual(ok);
+    expect(due(failed, now + 10_000)).toBe(false);
   });
 });
 

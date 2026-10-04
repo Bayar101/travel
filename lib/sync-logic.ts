@@ -32,6 +32,26 @@ export function acceptFetched(
 /** Min gap between non-forced syncs (route change, focus, visibility). A 304 costs ~200 B. */
 export const SYNC_THROTTLE_MS = 30_000;
 
+/** When the last sync succeeded. `confirmed: false` = provisional startup stamp (no fetch has succeeded yet). */
+export interface SyncStamp {
+  at: number;
+  confirmed: boolean;
+}
+
+/** Startup: throttle early route/focus syncs while the forced startup sync is pending. */
+export function startupStamp(now: number): SyncStamp {
+  return { at: now, confirmed: false };
+}
+
+/**
+ * Stamp after a sync attempt. Success records `now`. A failure keeps a confirmed stamp (normal
+ * throttle), but clears a provisional one so a failed startup sync can be retried right away.
+ */
+export function lastSyncAfter(prev: SyncStamp, ok: boolean, now: number): SyncStamp {
+  if (ok) return { at: now, confirmed: true };
+  return prev.confirmed ? prev : { at: 0, confirmed: false };
+}
+
 export interface SyncGate {
   running: boolean;
   queuedForce: boolean;
