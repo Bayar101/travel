@@ -11,7 +11,7 @@ Spec: `plan.md` (repo root). This file = build order. Each task self-contained; 
 - No extra runtime deps beyond: `next`, `react`, `react-dom`, `@supabase/supabase-js` (server only), `jose`, `idb-keyval`. No UI kits, icon libs, date libs, web fonts (system font stack). Map lib `maplibre-gl` allowed only in `components/map/*` (lazy-loaded by `MapView`).
 - Supabase accessed ONLY server-side with service role key (`import 'server-only'`). Browser never imports supabase-js.
 - DB/JSON field names `snake_case` everywhere (types mirror DB columns).
-- Single page app: `app/page.tsx` renders client `<App/>`; views switched by hash routes (`#/`, `#/day/<id>`, `#/locations`, `#/location/<id>`, `#/categories`, `#/stays`). Only other page: `app/login/page.tsx`.
+- Single page app: `app/page.tsx` renders client `<App/>`; views switched by hash routes (`#/`, `#/day/<id>`, `#/locations`, `#/location/<id>`, `#/categories`, `#/stays`, `#/map`). Only other page: `app/login/page.tsx`.
 - Every delete goes through `ConfirmDeleteDialog`; user must type exactly `delete me`. Server DELETE endpoints reject unless JSON body `{"confirm":"delete me"}`.
 - Server logs: structured JSON via `lib/logger.ts` only (fields `@timestamp`, `level`, constant `message`, `service`="trip-planner", `env`, `request_id`, `logger`, extra fields snake_case). Never log password, cookie, JWT, service key. Errors logged once at route boundary with error object. No `console.log` elsewhere in server code.
 - Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_PASSWORD_HASH` (`<salt_hex>:<hash_hex>` scrypt, keylen 64), `SESSION_SECRET` (≥ 32 chars). Provide `.env.example`.

@@ -6,7 +6,7 @@ export default function CategoryChips({ chips, value, onChange }: {
   chips: Chip[]; value: CategorySelection; onChange: (v: CategorySelection) => void;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none]">
+    <div className="pointer-events-auto flex w-fit max-w-full gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none]">
       {chips.map((c) => (
         <button
           key={c.key}

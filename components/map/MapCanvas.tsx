@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Map as MapLibreMap, Marker } from "maplibre-gl";
+import { AttributionControl, Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Location } from "@/lib/types";
 import { boundsFor } from "@/lib/map-data";
@@ -13,7 +13,7 @@ interface Props {
   locations: Location[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onUnavailable: (msg: string) => void;
+  onUnavailable: (msg: string | null) => void; // null clears the overlay
   onMap?: (map: MapLibreMap | null) => void; // LocateButton needs the instance
 }
 
@@ -65,7 +65,7 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
       map = new MapLibreMap({
         container: box.current,
         style: STYLE_URL,
-        attributionControl: { compact: true },
+        attributionControl: false,
         ...(cam
           ? { center: cam.center, zoom: cam.zoom }
           : b
@@ -76,6 +76,7 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
       unavailableRef.current("This device can't show the map");
       return;
     }
+    map.addControl(new AttributionControl({ compact: true }), "bottom-left");
     mapRef.current = map;
     mapCbRef.current?.(map);
     map.on("moveend", () => {
@@ -83,8 +84,14 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
       saveCamera({ center: [c.lng, c.lat], zoom: map.getZoom() });
     });
     map.on("load", () => setReady(true));
+    // Only a style failure is fatal; tile/glyph errors (offline, uncached area) leave blank tiles + working pins.
+    let styleOk = false;
+    map.on("style.load", () => {
+      styleOk = true;
+      unavailableRef.current(null);
+    });
     map.on("error", () => {
-      if (!map.isStyleLoaded()) unavailableRef.current("Map unavailable offline — open once online to save map data");
+      if (!styleOk) unavailableRef.current("Map unavailable offline — open once online to save map data");
     });
     const current = markers.current;
     return () => {
