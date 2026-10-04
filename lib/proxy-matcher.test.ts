@@ -10,7 +10,7 @@ const gated = (path: string) => new RegExp(matcher.regexp).test(path);
 
 describe("proxy matcher", () => {
   it("gates app pages and api", () => {
-    for (const p of ["/", "/api/data", "/api/items/reorder", "/api/login-x", "/api/loginx/y", "/loginfoo", "/login/x", "/sw.jsX", "/sw-map-cache.jsX", "/sw.js/x", "/icon.svgz", "/apple-iconx"]) {
+    for (const p of ["/", "/api/data", "/api/items/reorder", "/api/resolve-maps-link", "/api/login-x", "/api/loginx/y", "/loginfoo", "/login/x", "/sw.jsX", "/sw-map-cache.jsX", "/sw.js/x", "/icon.svgz", "/apple-iconx"]) {
       expect(gated(p), p).toBe(true);
     }
   });

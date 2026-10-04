@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import FilterChip from "@/components/ui/FilterChip";
 import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
@@ -8,17 +8,21 @@ import { FormError, SelectField, TextArea, TextField, NumberField } from "@/comp
 import Sheet from "@/components/ui/Sheet";
 import { useToast } from "@/components/Toast";
 import CategoryForm from "./CategoryForm";
-import { create, update } from "@/lib/api-client";
+import { create, resolveMapsLink, update } from "@/lib/api-client";
 import {
   cityList, coordsSummary, defaultEmoji, DEFAULT_EMOJI, QUICK_EMOJI, locationPayload, locationToForm, validateLocationForm,
   type LocationFormErrors, type LocationFormValues,
 } from "@/lib/location-form";
 import { categoryById, placesInArea } from "@/lib/selectors";
 import { parseLatLng } from "@/lib/maps";
+import { extractShortLink, placeNameFromUrl } from "@/lib/maps-link";
 import { useTrip } from "@/lib/store";
 import type { Category, Location, LocationType } from "@/lib/types";
 
 const NEW_CATEGORY = "__new__";
+const RESOLVE_DELAY_MS = 400; // typing a short link by hand: wait for a pause
+
+type MapsState = "idle" | "ok" | "bad" | "resolving" | "short-failed" | "short-offline";
 
 export interface LocationPrefill {
   type?: LocationType;
@@ -50,7 +54,16 @@ function Body({
   const [v, setV] = useState<LocationFormValues>(() => (location ? locationToForm(location) : emptyForm(prefill)));
   const [emojiTouched, setEmojiTouched] = useState(!!location);
   const [mapsInput, setMapsInput] = useState("");
-  const [mapsState, setMapsState] = useState<"idle" | "ok" | "bad">("idle");
+  const [mapsState, setMapsState] = useState<MapsState>("idle");
+  const [nameFilled, setNameFilled] = useState(false);
+  const resolveSeq = useRef(0); // newest paste wins; stale responses are dropped
+  const resolveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(resolveTimer.current), []);
+  const latest = useRef(v); // async link resolution reads the current Name
+  const autoName = useRef<string | null>(null);
+  useEffect(() => {
+    latest.current = v;
+  });
   const [errors, setErrors] = useState<LocationFormErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -87,17 +100,47 @@ function Body({
     selectCategory(categoryById(data!, id || null));
   }
 
+  // Coordinates always; Name only when still empty (never overwrite what was typed).
+  function fillFromLink(ll: { lat: number; lng: number }, name: string | null) {
+    // Fill an empty Name, or replace one an earlier link filled; never overwrite typed text.
+    const cur = latest.current.name.trim();
+    const fillName = !!name && (!cur || cur === autoName.current);
+    if (fillName) autoName.current = name;
+    setNameFilled(fillName);
+    setV((p) => ({ ...p, lat: String(ll.lat), lng: String(ll.lng), name: fillName ? name! : p.name }));
+    setErrors((e) => ({ ...e, lat: undefined, lng: undefined, ...(name ? { name: undefined } : {}) }));
+    setError(null);
+    setMapsState("ok");
+  }
+
   function onMapsInput(s: string) {
     setMapsInput(s);
+    clearTimeout(resolveTimer.current);
+    const seq = ++resolveSeq.current;
+    setNameFilled(false);
     if (!s.trim()) return setMapsState("idle");
     const ll = parseLatLng(s);
-    if (ll) {
-      setV((p) => ({ ...p, lat: String(ll.lat), lng: String(ll.lng) }));
-      setMapsState("ok");
-    } else {
+    if (ll) return fillFromLink(ll, placeNameFromUrl(s));
+    const short = extractShortLink(s);
+    if (!short) {
       setMapsState("bad");
-      setCoordsOpen(true);
+      return setCoordsOpen(true);
     }
+    if (!online) {
+      setMapsState("short-offline");
+      return setCoordsOpen(true);
+    }
+    setMapsState("resolving");
+    resolveTimer.current = setTimeout(async () => {
+      try {
+        const r = await resolveMapsLink(short);
+        if (seq === resolveSeq.current) fillFromLink(r, r.name);
+      } catch {
+        if (seq !== resolveSeq.current) return;
+        setMapsState("short-failed");
+        setCoordsOpen(true);
+      }
+    }, RESOLVE_DELAY_MS);
   }
 
   async function save() {
@@ -124,7 +167,6 @@ function Body({
 
   const cities = cityList(data);
   const coordErr = !!(errors.lat || errors.lng);
-  const shortLink = mapsState === "bad" && /maps\.app\.goo\.gl|goo\.gl\/maps/.test(mapsInput);
 
   return (
     <>
@@ -179,19 +221,34 @@ function Body({
               autoComplete="off"
               spellCheck={false}
             />
-            {mapsState === "idle" && <p className="mt-1 text-sm text-zinc-500">Share → Copy link in Google Maps</p>}
-            {mapsState === "ok" && (
-              <p role="status" className="mt-1 flex items-center gap-1.5 text-sm text-green-400">
-                <CheckIcon size={16} /> Coordinates filled · {coordsSummary(v)}
-              </p>
-            )}
-            {mapsState === "bad" && (
-              <p role="status" className="mt-1 text-sm text-amber-300">
-                {shortLink
-                  ? "Short link: open it in a browser, then copy the full URL — or enter coordinates below"
-                  : "Couldn't find coordinates in that text — enter them below"}
-              </p>
-            )}
+            <p role="status" aria-live="polite" className="mt-1 text-sm">
+              {mapsState === "idle" && (
+                <span className="text-zinc-500">
+                  Google Maps → Share → Copy link{online ? "" : " · short links need a connection"}
+                </span>
+              )}
+              {mapsState === "resolving" && (
+                <span className="flex items-center gap-1.5 text-zinc-400">
+                  <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
+                  Reading link…
+                </span>
+              )}
+              {mapsState === "ok" && (
+                <span className="flex items-center gap-1.5 text-green-400">
+                  <CheckIcon size={16} className="shrink-0" />
+                  <span className="min-w-0">
+                    {nameFilled ? "Name and coordinates filled" : "Coordinates filled"} · <span className="tabular-nums">{coordsSummary(v)}</span>
+                  </span>
+                </span>
+              )}
+              {mapsState === "bad" && <span className="text-amber-300">Couldn&apos;t find coordinates in that text — enter them below</span>}
+              {mapsState === "short-failed" && (
+                <span className="text-amber-300">Couldn&apos;t read that link — enter coordinates below</span>
+              )}
+              {mapsState === "short-offline" && (
+                <span className="text-amber-300">You&apos;re offline — short links need a connection. Enter coordinates below</span>
+              )}
+            </p>
           </div>
           <TextField label="Name" value={v.name} onChange={(x) => set("name", x)} error={errors.name} autoComplete="off" />
           <div>

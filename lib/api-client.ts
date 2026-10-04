@@ -94,3 +94,9 @@ export async function logout(): Promise<void> {
   window.location.replace("/login");
 }
 
+
+/** Expand a Google Maps share link server-side (read-only: no write bookkeeping). */
+export async function resolveMapsLink(url: string): Promise<{ lat: number; lng: number; name: string | null }> {
+  if (!isOnline()) throw new Error(OFFLINE);
+  return send("/api/resolve-maps-link", "POST", { url });
+}
