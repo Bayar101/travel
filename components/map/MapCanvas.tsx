@@ -8,6 +8,7 @@ import { boundsFor } from "@/lib/map-data";
 import { DEFAULT_CAMERA, loadCamera, saveCamera } from "@/lib/map-ui";
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+const FIT = { padding: 48, maxZoom: 15 };
 
 // Served from public/ (scripts/copy-maplibre-worker.mjs): Turbopack gives maplibre a file://
 // import.meta.url, so its own worker URL resolves to "". The worker imports the shared chunk next to it.
@@ -18,7 +19,8 @@ interface Props {
   locations: Location[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onUnavailable: (msg: string | null) => void; // null clears the overlay
+  fitKey: string; // camera refits to `locations` when this changes (category filter), not on data sync
+  onUnavailable: (msg: string | null, retry?: () => void) => void; // null clears the overlay
   onMap?: (map: MapLibreMap | null) => void; // LocateButton needs the instance
 }
 
@@ -45,7 +47,7 @@ function markSelected(els: Iterable<[string, { el: HTMLElement }]>, selectedId: 
   for (const [id, { el }] of els) el.dataset.selected = String(id === selectedId);
 }
 
-export default function MapCanvas({ locations, selectedId, onSelect, onUnavailable, onMap }: Props) {
+export default function MapCanvas({ locations, selectedId, fitKey, onSelect, onUnavailable, onMap }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markers = useRef(new Map<string, { marker: Marker; el: HTMLButtonElement; sig: string }>());
@@ -53,6 +55,7 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
   const unavailableRef = useRef(onUnavailable);
   const mapCbRef = useRef(onMap);
   const seed = useRef(locations); // first camera only
+  const fittedFor = useRef(fitKey);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     selectRef.current = onSelect;
@@ -75,7 +78,7 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
         ...(cam
           ? { center: cam.center, zoom: cam.zoom }
           : b
-            ? { bounds: b, fitBoundsOptions: { padding: 48, maxZoom: 15 } }
+            ? { bounds: b, fitBoundsOptions: FIT }
             : { center: DEFAULT_CAMERA.center, zoom: DEFAULT_CAMERA.zoom }),
       });
     } catch {
@@ -96,11 +99,16 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
       styleOk = true;
       unavailableRef.current(null);
     });
+    const retryStyle = () => {
+      if (!styleOk) map.setStyle(STYLE_URL, { diff: false });
+    };
     map.on("error", () => {
-      if (!styleOk) unavailableRef.current("Map unavailable offline — open once online to save map data");
+      if (!styleOk) unavailableRef.current("Map unavailable offline — open once online to save map data", retryStyle);
     });
+    window.addEventListener("online", retryStyle);
     const current = markers.current;
     return () => {
+      window.removeEventListener("online", retryStyle);
       for (const { marker } of current.values()) marker.remove();
       current.clear();
       mapCbRef.current?.(null);
@@ -134,6 +142,17 @@ export default function MapCanvas({ locations, selectedId, onSelect, onUnavailab
     // selectedId only seeds new elements; the effect below keeps it in sync
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locations, ready]);
+
+  // Filter change: show what's visible now. Declared before the selection effect so a
+  // card-driven filter reset still ends on the selected pin.
+  useEffect(() => {
+    if (fittedFor.current === fitKey) return;
+    fittedFor.current = fitKey;
+    const b = boundsFor(locations);
+    if (mapRef.current && b) mapRef.current.fitBounds(b, FIT);
+    // refit only when the filter changes, not on every locations change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
 
   // Highlight, and bring the selected pin above the card.
   useEffect(() => {
