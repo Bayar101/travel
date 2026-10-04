@@ -84,7 +84,7 @@ export default function MapView() {
   // PinCard (a Sheet) renders outside the z-0 map layer: inside it, the bottom nav would cover its footer.
   return (
     <>
-      <div className="fixed inset-x-0 top-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-0 bg-zinc-950">
+      <div className="fixed inset-x-0 top-0 bottom-(--nav-h) z-0 bg-zinc-950">
         <MapErrorBoundary fallback={<MapLoadFailed online={online} />} onError={() => setCrashed(true)}>
           <MapCanvas
             locations={visible}

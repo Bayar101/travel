@@ -44,7 +44,7 @@ export default function PinCard({
       title={l.name}
       footer={
         <div className="flex gap-2">
-          <DirectionsButton lat={l.lat} lng={l.lng} full primary className="flex-1" />
+          <DirectionsButton lat={l.lat} lng={l.lng} name={l.name} full primary className="flex-1" />
           <Button variant="secondary" className="flex-1" onClick={() => navigate(`/location/${encodeURIComponent(l.id)}`)}>
             Open details
           </Button>

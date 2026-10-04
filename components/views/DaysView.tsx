@@ -13,7 +13,8 @@ import Sheet from "@/components/ui/Sheet";
 import { CARD, CARD_BUTTON } from "@/components/ui/styles";
 import { logout } from "@/lib/api-client";
 import { claimScroll, navigate } from "@/lib/router";
-import { stayForNight, todayISO } from "@/lib/selectors";
+import { stayForNight } from "@/lib/selectors";
+import { useToday } from "@/components/ui/useToday";
 import { useTrip } from "@/lib/store";
 import { dateBlock, dayListRows, itemPreviews, tripStatus, tripSummary } from "@/lib/trip";
 import type { Day, TripData } from "@/lib/types";
@@ -123,6 +124,7 @@ export default function DaysView() {
   const [menu, setMenu] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const target = useRef<HTMLLIElement>(null);
+  const today = useToday();
 
   // Layout effects: restore before paint, and save on unmount while the list is still in the DOM.
   useLayoutEffect(() => {
@@ -136,7 +138,6 @@ export default function DaysView() {
 
   if (!data) return null;
 
-  const today = todayISO();
   const rows = dayListRows(data.days);
   const dayRows = rows.filter((r) => r.kind === "day");
   // First shown: centre on today / next upcoming day; before the trip, stay at the top.

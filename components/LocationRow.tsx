@@ -58,7 +58,7 @@ export default function LocationRow({
       >
         <LocationRowBody location={l} data={data} withArea={withArea} />
       </button>
-      <DirectionsButton lat={l.lat} lng={l.lng} />
+      <DirectionsButton lat={l.lat} lng={l.lng} name={l.name} />
     </li>
   );
 }

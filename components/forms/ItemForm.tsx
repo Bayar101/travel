@@ -167,7 +167,7 @@ function Body({
         </form>
         )}
       </Sheet>
-      <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)} autoFocus>
+      <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)}>
         <LocationPicker onPick={pick} />
       </Sheet>
       {item && (

@@ -19,7 +19,7 @@ export default function Fab({
   return (
     <>
       <div aria-hidden="true" className="h-20" />
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md justify-end px-4">
+      <div className="pointer-events-none fixed inset-x-0 bottom-(--fab-bottom) z-30 mx-auto flex max-w-md justify-end px-4">
         <button
           type="button"
           aria-label={label}

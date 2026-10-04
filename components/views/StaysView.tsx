@@ -9,7 +9,8 @@ import DirectionsButton from "@/components/ui/DirectionsButton";
 import Fab from "@/components/ui/Fab";
 import { AlertIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { CARD, EMOJI_TILE } from "@/components/ui/styles";
-import { locationById, todayISO } from "@/lib/selectors";
+import { locationById } from "@/lib/selectors";
+import { useToday } from "@/components/ui/useToday";
 import { formatDay, nightsBetween } from "@/lib/stay-dates";
 import { gapLabel, stayStatusLabel, stayTimeline, type GapRow, type StayRow } from "@/lib/stays";
 import { useTrip } from "@/lib/store";
@@ -97,7 +98,7 @@ function StayCard({ row, data, today, onEdit }: { row: StayRow; data: TripData; 
         <DateBar row={row} today={today} />
       </button>
       <div className="flex gap-2 px-3 pb-3">
-        {loc && <DirectionsButton lat={loc.lat} lng={loc.lng} full primary={status === "now"} className="flex-1" />}
+        {loc && <DirectionsButton lat={loc.lat} lng={loc.lng} name={stay.name} full primary={status === "now"} className="flex-1" />}
         <AirbnbButton url={stay.airbnb_url} className="flex-1" />
       </div>
     </div>
@@ -120,9 +121,9 @@ export default function StaysView() {
   const { data, online } = useTrip();
   const [editing, setEditing] = useState<Stay | undefined>();
   const [creating, setCreating] = useState(false);
+  const today = useToday();
   if (!data) return null;
 
-  const today = todayISO();
   const rows = stayTimeline(data.stays, today);
   const stays = rows.filter((r): r is StayRow => r.kind === "stay");
   const gaps = rows.filter((r): r is GapRow => r.kind === "gap");

@@ -4,17 +4,20 @@ import { DirectionsIcon } from "./icons";
 /**
  * Opens Google Maps directions to a location.
  * Default: 44px round icon button (lists). `full`: labelled "Directions" button;
- * `primary` makes it the red primary action.
+ * `primary` makes it the red primary action. `name` makes the accessible name specific
+ * ("Open Senso-ji in Google Maps") so a list of these buttons is distinguishable.
  */
 export default function DirectionsButton({
   lat,
   lng,
+  name,
   full = false,
   primary = false,
   className = "",
 }: {
   lat: number;
   lng: number;
+  name: string;
   full?: boolean;
   primary?: boolean;
   className?: string;
@@ -26,8 +29,8 @@ export default function DirectionsButton({
         href={href}
         target="_blank"
         rel="noopener"
-        aria-label="Open in Google Maps"
-        title="Open in Google Maps"
+        aria-label={`Open ${name} in Google Maps`}
+        title={`Open ${name} in Google Maps`}
         onClick={(e) => e.stopPropagation()}
         className={`flex size-11 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-100 transition-colors active:bg-zinc-700 ${className}`}
       >
@@ -41,7 +44,7 @@ export default function DirectionsButton({
       href={href}
       target="_blank"
       rel="noopener"
-      aria-label="Directions (opens Google Maps)"
+      aria-label={`Directions to ${name} (opens Google Maps)`}
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-base font-medium transition-colors ${tone} ${className}`}
     >
       <DirectionsIcon size={20} />

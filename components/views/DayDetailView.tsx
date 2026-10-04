@@ -16,7 +16,8 @@ import { SECTION_HEADING } from "@/components/ui/styles";
 import { remove, reorderItems } from "@/lib/api-client";
 import { moveId } from "@/lib/day-items";
 import { goBack, navigate } from "@/lib/router";
-import { itemsForDay, todayISO } from "@/lib/selectors";
+import { itemsForDay } from "@/lib/selectors";
+import { useToday } from "@/components/ui/useToday";
 import { formatDay } from "@/lib/stay-dates";
 import { useTrip } from "@/lib/store";
 import { adjacentDayIds, dayNumber, swipeDirection } from "@/lib/trip";
@@ -45,6 +46,7 @@ function DayDetail({ id }: { id: string }) {
   const [deleted, setDeleted] = useState(false); // suppress "Not found" flash between prune and navigation
   const [enter] = useState(() => (lastStep && Date.now() - lastStep.at < 1000 ? lastStep.dir : null));
   const content = useRef<HTMLDivElement>(null);
+  const today = useToday();
   const touch = useRef<{ x: number; y: number; dx: number; dy: number; axis: "x" | "y" | null } | null>(null);
 
   if (!data) return null;
@@ -66,7 +68,7 @@ function DayDetail({ id }: { id: string }) {
   const { prev, next } = adjacentDayIds(data.days, day.id);
   const firstDate = data.days.reduce((min, d) => (d.date < min ? d.date : min), day.date);
   const n = dayNumber(firstDate, day.date);
-  const isToday = day.date === todayISO();
+  const isToday = day.date === today;
   const empty = timed.length === 0 && anytime.length === 0;
   const canReorder = anytime.length > 1;
   const reorderOn = reordering && canReorder;
@@ -85,7 +87,7 @@ function DayDetail({ id }: { id: string }) {
   }
 
   // Horizontal swipe on the content: left = next day, right = previous. The page follows the
-  // finger (damped, stiffer at the ends); vertical scrolling stays native via touch-pan-y.
+  // finger (damped, stiffer at the ends); vertical scrolling and pinch-zoom stay native (touch-action).
   const setShift = (px: number, animate: boolean) => {
     const el = content.current;
     if (!el) return;
@@ -118,6 +120,11 @@ function DayDetail({ id }: { id: string }) {
     const target = dir === "next" ? next : dir === "prev" ? prev : null;
     if (dir && target) goToDay(target, dir);
   };
+  // The system took the gesture (e.g. iOS edge-swipe Back): snap back, never navigate.
+  const onTouchCancel = () => {
+    touch.current = null;
+    setShift(0, true);
+  };
 
   const enterClass =
     enter === "next" ? "motion-safe:animate-[day-in-right_220ms_ease-out]" : enter === "prev" ? "motion-safe:animate-[day-in-left_220ms_ease-out]" : "";
@@ -129,12 +136,16 @@ function DayDetail({ id }: { id: string }) {
         back
         action={
           <>
-            <IconButton label="Previous day" disabled={!prev} onClick={() => prev && goToDay(prev, "prev")}>
-              <ChevronLeftIcon size={24} />
-            </IconButton>
-            <IconButton label="Next day" disabled={!next} onClick={() => next && goToDay(next, "next")}>
-              <ChevronRightIcon size={24} />
-            </IconButton>
+            {/* Day stepper: a grouped pill, visually distinct from the plain Back chevron. */}
+            <div role="group" aria-label="Change day" className="mr-1 flex items-center rounded-full bg-zinc-900 ring-1 ring-white/10">
+              <IconButton label="Previous day" disabled={!prev} onClick={() => prev && goToDay(prev, "prev")}>
+                <ChevronLeftIcon size={20} />
+              </IconButton>
+              <span className="min-w-12 text-center text-sm font-semibold tabular-nums text-zinc-300">Day {n}</span>
+              <IconButton label="Next day" disabled={!next} onClick={() => next && goToDay(next, "next")}>
+                <ChevronRightIcon size={20} />
+              </IconButton>
+            </div>
             <IconButton label="Edit day" disabled={!online} onClick={() => setEditingDay(true)}>
               <PencilIcon size={22} />
             </IconButton>
@@ -142,11 +153,11 @@ function DayDetail({ id }: { id: string }) {
         }
       />
       <div
-        className="min-h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] touch-pan-y overflow-x-clip"
+        className="min-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-var(--nav-h))] [touch-action:pan-y_pinch-zoom] overflow-x-clip"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
+        onTouchCancel={onTouchCancel}
       >
         <div ref={content} className={`space-y-6 px-4 pb-4 pt-5 ${enterClass}`}>
           <div className="space-y-3">

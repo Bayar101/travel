@@ -2,6 +2,11 @@
 
 :root {
   color-scheme: dark;
+  /* Fixed bottom chrome, shared by BottomNav, App padding, map, FAB, toast, offline badge.
+     --nav-h: BottomNav (h-16 tabs + 1px top border) + home-indicator safe area. */
+  --nav-h: calc(4rem + 1px + env(safe-area-inset-bottom));
+  --fab-bottom: calc(var(--nav-h) + 1.5rem); /* FAB's bottom edge */
+  --fab-top: calc(var(--fab-bottom) + 3.5rem); /* FAB is 56px */
 }
 
 html {

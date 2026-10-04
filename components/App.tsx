@@ -82,7 +82,7 @@ export default function App() {
   return (
     <ToastProvider>
       <RegisterSW />
-      <div className="mx-auto min-h-dvh max-w-md pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      <div className="mx-auto min-h-dvh max-w-md pb-[calc(var(--nav-h)+0.5rem)]">
         {!online && route.view !== "map" && <OfflineBadge />}
         {data ? <View route={route} /> : showLoadError({ data, loading, error, online }) ? <LoadError online={online} /> : <Skeleton />}
       </div>

@@ -22,7 +22,7 @@ export default function HotelCard({ data, date }: { data: TripData; date: string
             </div>
           </div>
           <div className="flex gap-2">
-            {loc && <DirectionsButton lat={loc.lat} lng={loc.lng} full className="flex-1" />}
+            {loc && <DirectionsButton lat={loc.lat} lng={loc.lng} name={night.stay.name} full className="flex-1" />}
             <AirbnbButton url={night.stay.airbnb_url} className="flex-1" />
           </div>
         </>

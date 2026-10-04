@@ -155,7 +155,7 @@ function Body({ stay, onClose }: { stay?: Stay; onClose: () => void }) {
           )}
         </form>
       </Sheet>
-      <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)} autoFocus>
+      <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)}>
         <LocationPicker
           onPick={(l) => {
             edit((p) => ({ ...p, location_id: l.id, name: p.name.trim() ? p.name : l.name }));
