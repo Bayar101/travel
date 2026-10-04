@@ -42,8 +42,9 @@ export function useRoute(): Route {
 }
 
 // Sheet-aware: callers may close a sheet and navigate in any order.
-export function navigate(path: string): void {
-  sheetHistory.navigate(path.startsWith("#") ? path : `#${path}`);
+// replace: swap the current entry so Back skips it (prev/next day).
+export function navigate(path: string, opts?: { replace?: boolean }): void {
+  sheetHistory.navigate(path.startsWith("#") ? path : `#${path}`, opts);
 }
 
 // Back only when the previous entry is in-app; deep-link landing falls back to home.

@@ -11,6 +11,7 @@ function setup() {
     go: (d: number) => { const to = idx + d; setTimeout(() => { idx = to; pop(); }, 5); },
     currentHash: () => entries[idx].url,
     setHash: (h: string) => { entries.splice(idx + 1); entries.push({ url: h, state: null }); idx++; },
+    replaceHash: (h: string) => { entries[idx] = { url: h, state: null }; },
     getDepth: () => entries[idx].state?.depth ?? 0,
     setDepth: (d: number) => { entries[idx].state = { depth: d }; },
     onPop: (fn: () => void) => { pop = fn; },
@@ -169,5 +170,34 @@ describe("sheet history", () => {
     t.sh.navigate("#/a"); // same hash: no new entry, depth unchanged
     expect(t.urls()).toEqual(["#/", "#/a"]);
     t.sh.navigate("#/b");
+  });
+
+  it("navigate with replace swaps the current entry and keeps depth", () => {
+    const t = setup();
+    t.sh.navigate("#/days");
+    t.sh.navigate("#/day/a");
+    t.sh.navigate("#/day/b", { replace: true });
+    expect(t.urls()).toEqual(["#/", "#/days", "#/day/b"]);
+    expect(t.sh.canGoBack()).toBe(true);
+  });
+
+  it("replace on a deep-link landing keeps canGoBack false", () => {
+    const t = setup();
+    t.sh.navigate("#/day/b", { replace: true });
+    expect(t.urls()).toEqual(["#/day/b"]);
+    expect(t.sh.canGoBack()).toBe(false);
+  });
+
+  it("replace while a sheet is open unwinds the sheet first", async () => {
+    const t = setup();
+    t.sh.navigate("#/day/a");
+    const h = t.sh.open(() => {});
+    await vi.advanceTimersByTimeAsync(1);
+    t.sh.navigate("#/day/b", { replace: true });
+    h.release();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(t.cur()).toBe("#/day/b");
+    expect(t.urls().slice(0, 2)).toEqual(["#/", "#/day/b"]); // forward sheet entry is dead
+    expect(t.sh.canGoBack()).toBe(true);
   });
 });

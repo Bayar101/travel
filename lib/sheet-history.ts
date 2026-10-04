@@ -12,6 +12,7 @@ export interface HistoryEnv {
   go(delta: number): void;
   currentHash(): string;
   setHash(hash: string): void;
+  replaceHash(hash: string): void; // replace the current entry (fires hashchange)
   getDepth(): number; // in-app navigation depth stored in the current entry's state
   setDepth(depth: number): void; // replaceState on the current entry
   onPop(handler: () => void): void; // register once
@@ -35,15 +36,20 @@ export function createSheetHistory(env: HistoryEnv) {
   let hist: Entry[] = []; // entries living in browser history, topmost last
   let backsInFlight = 0;
   let deferredBack = 0; // backs requested while one was in flight; never overlap go() calls
-  let pendingNav: string | null = null;
+  let pendingNav: { hash: string; replace: boolean } | null = null;
   let reconcileQueued = false;
   let listening = false;
 
-  function applyHash(h: string) {
+  function applyHash(h: string, replace: boolean) {
     if (env.currentHash() === h) return;
     const d = env.getDepth();
-    env.setHash(h);
-    env.setDepth(d + 1);
+    if (replace) {
+      env.replaceHash(h);
+      env.setDepth(d);
+    } else {
+      env.setHash(h);
+      env.setDepth(d + 1);
+    }
   }
 
   function onPop() {
@@ -60,7 +66,7 @@ export function createSheetHistory(env: HistoryEnv) {
       if (pendingNav !== null) {
         const p = pendingNav;
         pendingNav = null;
-        applyHash(p);
+        applyHash(p.hash, p.replace);
       }
       return;
     }
@@ -128,7 +134,8 @@ export function createSheetHistory(env: HistoryEnv) {
     };
   }
 
-  function navigate(hash: string) {
+  // replace: swap the current route entry (e.g. prev/next day) instead of pushing one.
+  function navigate(hash: string, { replace = false }: { replace?: boolean } = {}) {
     for (const e of open) {
       clearTimeout(e.timer);
       e.timer = undefined;
@@ -141,10 +148,10 @@ export function createSheetHistory(env: HistoryEnv) {
     }
     hist = [];
     if (n === 0 && backsInFlight === 0) {
-      applyHash(hash);
+      applyHash(hash, replace);
       return;
     }
-    pendingNav = hash;
+    pendingNav = { hash, replace };
     unwind(n);
   }
 
@@ -162,6 +169,9 @@ export const sheetHistory = createSheetHistory({
   setDepth: (depth) => history.replaceState({ depth }, ""),
   setHash: (h) => {
     window.location.hash = h;
+  },
+  replaceHash: (h) => {
+    window.location.replace(h);
   },
   onPop: (fn) => window.addEventListener("popstate", fn),
 });
