@@ -73,3 +73,14 @@ export function locationToForm(l: Location): LocationFormValues {
 export function cityList(data: TripData): string[] {
   return [...new Set(data.locations.map((l) => l.city))].sort((a, b) => a.localeCompare(b));
 }
+
+/** Quick-pick row in the location form. */
+export const QUICK_EMOJI = ["📍", "🍜", "🍣", "☕", "🍵", "⛩️", "🏯", "🛍️", "🏙️", "🌸", "🗻", "🏨"];
+
+/** "35.71477, 139.79666" for the collapsed Coordinates disclosure; null if not valid yet. */
+export function coordsSummary(v: Pick<LocationFormValues, "lat" | "lng">): string | null {
+  const lat = coord(v.lat, 90);
+  const lng = coord(v.lng, 180);
+  if (lat === null || lng === null) return null;
+  return `${Number(lat.toFixed(5))}, ${Number(lng.toFixed(5))}`;
+}

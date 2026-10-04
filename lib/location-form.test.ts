@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { cityList, defaultEmoji, locationPayload, validateLocationForm, type LocationFormValues } from "./location-form";
+import {
+  cityList, coordsSummary, defaultEmoji, locationPayload, QUICK_EMOJI, validateLocationForm, type LocationFormValues,
+} from "./location-form";
 import type { TripData } from "./types";
 
 const base: LocationFormValues = {
@@ -60,5 +62,23 @@ describe("defaultEmoji", () => {
     expect(defaultEmoji({ id: "c", name: "F", emoji: "🍜" })).toBe("🍜");
     expect(defaultEmoji({ id: "c", name: "F", emoji: null })).toBe("📍");
     expect(defaultEmoji(undefined)).toBe("📍");
+  });
+});
+
+describe("QUICK_EMOJI", () => {
+  it("has ~12 unique emoji", () => {
+    expect(QUICK_EMOJI.length).toBe(12);
+    expect(new Set(QUICK_EMOJI).size).toBe(12);
+  });
+});
+
+describe("coordsSummary", () => {
+  it("formats valid coords to 5 decimals", () => {
+    expect(coordsSummary({ lat: "35.7147651", lng: "139.7966553" })).toBe("35.71477, 139.79666");
+  });
+  it("null when missing or invalid", () => {
+    expect(coordsSummary({ lat: "", lng: "139" })).toBeNull();
+    expect(coordsSummary({ lat: "abc", lng: "139" })).toBeNull();
+    expect(coordsSummary({ lat: "95", lng: "139" })).toBeNull();
   });
 });
