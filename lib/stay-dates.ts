@@ -31,7 +31,8 @@ export function formatStayRange(checkIn: string, checkOut: string): string {
   return `${formatDay(checkIn)} → ${formatDay(checkOut)} · ${n} night${n === 1 ? "" : "s"}`;
 }
 
-// Today within [check_in, check_out); ISO strings compare lexicographically.
-export function isCurrentStay(s: { check_in: string; check_out: string }, today: string): boolean {
-  return s.check_in <= today && today < s.check_out;
+/** Milliseconds from `now` to the next local midnight (when "today" changes). */
+export function msUntilNextDay(now: Date): number {
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return next.getTime() - now.getTime();
 }

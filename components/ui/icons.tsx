@@ -69,8 +69,6 @@ export const ChevronRightIcon = make("ChevronRight", <path d="m9 5 7 7-7 7" />);
 export const ChevronDownIcon = make("ChevronDown", <path d="m5 9 7 7 7-7" />);
 export const ChevronUpIcon = make("ChevronUp", <path d="m5 15 7-7 7 7" />);
 
-export const NavigationIcon = make("Navigation", <path d="M20 4 3.5 10.8l7 2.7 2.7 7L20 4Z" />);
-
 /** Road-sign diamond with a turn arrow: "get directions". */
 export const DirectionsIcon = make(
   "Directions",
@@ -115,31 +113,11 @@ export const SearchIcon = make(
 
 export const XIcon = make("X", <path d="M6 6l12 12M18 6 6 18" />);
 
-export const ClockIcon = make(
-  "Clock",
-  <>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M12 7.5V12l3 2" />
-  </>,
-);
-
 export const NoteIcon = make(
   "Note",
   <>
     <path d="M14.5 3.5H7A2.5 2.5 0 0 0 4.5 6v12A2.5 2.5 0 0 0 7 20.5h10a2.5 2.5 0 0 0 2.5-2.5V8.5l-5-5Z" />
     <path d="M14.5 3.5v5h5M8.5 13h7M8.5 16.5h4.5" />
-  </>,
-);
-
-export const GripIcon = make(
-  "Grip",
-  <>
-    {[6, 12, 18].map((y) => (
-      <g key={y}>
-        <circle cx="9" cy={y} r="1" fill="currentColor" />
-        <circle cx="15" cy={y} r="1" fill="currentColor" />
-      </g>
-    ))}
   </>,
 );
 
