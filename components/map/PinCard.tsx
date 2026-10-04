@@ -7,7 +7,7 @@ import { categoryById, locationById, placesInArea } from "@/lib/selectors";
 import { plannedOn } from "@/lib/map-data";
 import type { Location } from "@/lib/types";
 import Sheet from "@/components/ui/Sheet";
-import MapsButton from "@/components/ui/MapsButton";
+import DirectionsButton from "@/components/ui/DirectionsButton";
 
 const ROW = "min-h-11 w-full text-left text-base active:bg-zinc-800";
 
@@ -42,7 +42,7 @@ export default function PinCard({
       title={`${l.emoji} ${l.name}`}
       footer={
         <div className="flex gap-3">
-          <MapsButton lat={l.lat} lng={l.lng} />
+          <DirectionsButton lat={l.lat} lng={l.lng} full />
           <button
             type="button"
             className="min-h-11 flex-1 rounded-xl bg-red-500 px-4 text-base font-medium text-white active:bg-red-600"

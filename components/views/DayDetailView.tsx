@@ -7,8 +7,11 @@ import DayItemRow, { NoteCallout } from "@/components/DayItemRow";
 import Header from "@/components/Header";
 import HotelCard from "@/components/HotelCard";
 import { useToast } from "@/components/Toast";
-import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
+import Fab from "@/components/ui/Fab";
+import IconButton from "@/components/ui/IconButton";
+import { PencilIcon } from "@/components/ui/icons";
+import { SECTION_HEADING } from "@/components/ui/styles";
 import { remove, reorderItems } from "@/lib/api-client";
 import { moveId } from "@/lib/day-items";
 import { goBack, navigate } from "@/lib/router";
@@ -60,15 +63,9 @@ export default function DayDetailView({ id }: { id: string }) {
         title={formatDay(day.date)}
         back
         action={
-          <button
-            type="button"
-            aria-label="Edit day"
-            disabled={!online}
-            onClick={() => setEditingDay(true)}
-            className="flex size-11 items-center justify-center rounded-lg text-xl text-zinc-100 active:bg-zinc-800 disabled:opacity-50"
-          >
-            ✏️
-          </button>
+          <IconButton label="Edit day" disabled={!online} onClick={() => setEditingDay(true)}>
+            <PencilIcon size={22} />
+          </IconButton>
         }
       />
       <div className="space-y-4 p-4">
@@ -76,11 +73,11 @@ export default function DayDetailView({ id }: { id: string }) {
         {day.note && <NoteCallout note={day.note} />}
         <HotelCard data={data} date={day.date} />
         {timed.length === 0 && anytime.length === 0 && (
-          <EmptyState emoji="🗓️" text="Nothing planned yet" />
+          <EmptyState emoji="🗓️" text="Nothing planned yet" cta={online ? { label: "Add a place", onClick: () => setAdding(true) } : undefined} />
         )}
         {timed.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-base font-semibold text-zinc-100">Timed</h3>
+            <h3 className={SECTION_HEADING}>Schedule</h3>
             <ul className="space-y-2">
               {timed.map((i) => (
                 <DayItemRow key={i.id} item={i} data={data} onEdit={() => setEditingItemId(i.id)} />
@@ -90,7 +87,7 @@ export default function DayDetailView({ id }: { id: string }) {
         )}
         {anytime.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-base font-semibold text-zinc-100">Anytime</h3>
+            <h3 className={SECTION_HEADING}>Anytime</h3>
             <ul className="space-y-2">
               {anytime.map((i, idx) => (
                 <DayItemRow
@@ -109,10 +106,8 @@ export default function DayDetailView({ id }: { id: string }) {
             </ul>
           </section>
         )}
-        <Button className="w-full" disabled={!online} onClick={() => setAdding(true)}>
-          + Add
-        </Button>
       </div>
+      <Fab label="Add to day" disabled={!online} onClick={() => setAdding(true)} />
       <ItemForm open={adding} dayId={day.id} onClose={() => setAdding(false)} />
       <ItemForm open={!!editingItem} dayId={day.id} item={editingItem} onClose={() => setEditingItemId(null)} />
       <DayForm

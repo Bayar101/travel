@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { sheetHistory } from "@/lib/sheet-history";
 import { useVisualViewport } from "./useVisualViewport";
+import { XIcon } from "./icons";
 
 export default function Sheet({
   open,
@@ -72,9 +73,9 @@ export default function Sheet({
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="flex size-11 shrink-0 items-center justify-center rounded-lg text-2xl text-zinc-400 active:bg-zinc-800"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-zinc-400 active:bg-zinc-800"
           >
-            ×
+            <XIcon size={22} />
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{children}</div>

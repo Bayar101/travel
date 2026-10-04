@@ -8,7 +8,7 @@ import { useToast } from "@/components/Toast";
 import Button from "@/components/ui/Button";
 import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
 import EmptyState from "@/components/ui/EmptyState";
-import MapsButton from "@/components/ui/MapsButton";
+import DirectionsButton from "@/components/ui/DirectionsButton";
 import { remove } from "@/lib/api-client";
 import { goBack, navigate } from "@/lib/router";
 import { categoryById, deleteImpact, locationById, placesInArea } from "@/lib/selectors";
@@ -71,7 +71,7 @@ export default function LocationDetailView({ id }: { id: string }) {
           </button>
         )}
         {l.description && <p className="whitespace-pre-wrap break-words text-base text-zinc-100">{l.description}</p>}
-        <MapsButton lat={l.lat} lng={l.lng} className="w-full" />
+        <DirectionsButton lat={l.lat} lng={l.lng} full primary className="w-full" />
         <div className="flex gap-2">
           <Button variant="secondary" className="flex-1" disabled={!online} onClick={() => setEditing(true)}>
             Edit

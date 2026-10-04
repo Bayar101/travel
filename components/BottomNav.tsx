@@ -1,32 +1,39 @@
 "use client";
 
+import { BedIcon, CalendarIcon, MapIcon, MapPinIcon } from "@/components/ui/icons";
 import { navigate, type Route } from "@/lib/router";
 
 const TABS = [
-  { path: "/", label: "Days", emoji: "📅", views: ["days", "day"] },
-  { path: "/locations", label: "Locations", emoji: "📍", views: ["locations", "location", "categories"] },
-  { path: "/stays", label: "Stays", emoji: "🏠", views: ["stays"] },
-  { path: "/map", label: "Map", emoji: "🗺️", views: ["map"] },
+  { path: "/", label: "Days", Icon: CalendarIcon, views: ["days", "day"] },
+  { path: "/locations", label: "Locations", Icon: MapPinIcon, views: ["locations", "location", "categories"] },
+  { path: "/stays", label: "Stays", Icon: BedIcon, views: ["stays"] },
+  { path: "/map", label: "Map", Icon: MapIcon, views: ["map"] },
 ] as const;
 
 export default function BottomNav({ route }: { route: Route }) {
   return (
-    <nav className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-zinc-800 bg-zinc-950">
+    <nav aria-label="Main" className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/5 bg-zinc-950/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-md">
-        {TABS.map((t) => {
-          const active = (t.views as readonly string[]).includes(route.view);
+        {TABS.map(({ path, label, Icon, views }) => {
+          const active = (views as readonly string[]).includes(route.view);
           return (
             <button
-              key={t.path}
+              key={path}
               type="button"
               aria-current={active ? "page" : undefined}
-              onClick={() => navigate(t.path)}
-              className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-sm ${
-                active ? "text-red-500" : "text-zinc-400"
+              onClick={() => navigate(path)}
+              className={`flex h-16 flex-1 flex-col items-center justify-center gap-1 text-sm font-medium transition-colors ${
+                active ? "text-red-500" : "text-zinc-500 active:text-zinc-300"
               }`}
             >
-              <span className="text-xl leading-none" aria-hidden>{t.emoji}</span>
-              {t.label}
+              <span
+                className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
+                  active ? "bg-red-500/15" : ""
+                }`}
+              >
+                <Icon size={22} strokeWidth={active ? 2 : 1.75} />
+              </span>
+              <span className="leading-none">{label}</span>
             </button>
           );
         })}

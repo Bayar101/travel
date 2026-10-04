@@ -5,6 +5,9 @@ import LocationForm from "@/components/forms/LocationForm";
 import Header from "@/components/Header";
 import LocationRow from "@/components/LocationRow";
 import EmptyState from "@/components/ui/EmptyState";
+import Fab from "@/components/ui/Fab";
+import IconButton from "@/components/ui/IconButton";
+import { SearchIcon, TagIcon } from "@/components/ui/icons";
 import { cityList } from "@/lib/location-form";
 import { navigate } from "@/lib/router";
 import { filterLocations } from "@/lib/selectors";
@@ -18,7 +21,6 @@ const CHIPS: { label: string; type?: LocationType }[] = [
 ];
 const SELECT =
   "min-h-11 min-w-0 flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-base text-zinc-100";
-const HEADER_BTN = "flex size-11 items-center justify-center rounded-lg text-2xl text-zinc-100 active:bg-zinc-800";
 
 export default function LocationsView() {
   const { data, online } = useTrip();
@@ -47,34 +49,26 @@ export default function LocationsView() {
       <Header
         title="Locations"
         action={
-          <>
-            <button type="button" aria-label="Categories" onClick={() => navigate("/categories")} className={HEADER_BTN}>
-              🏷️
-            </button>
-            <button
-              type="button"
-              aria-label="New location"
-              disabled={!online}
-              onClick={() => setCreating(true)}
-              className={`${HEADER_BTN} disabled:opacity-50`}
-            >
-              +
-            </button>
-          </>
+          <IconButton label="Categories" onClick={() => navigate("/categories")}>
+            <TagIcon size={22} />
+          </IconButton>
         }
       />
       <div className="space-y-3 p-4">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search locations"
-          aria-label="Search locations"
-          enterKeyHint="search"
-          autoCapitalize="off"
-          autoCorrect="off"
-          className="min-h-11 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-base text-zinc-100 placeholder:text-zinc-600"
-        />
+        <div className="relative">
+          <SearchIcon size={20} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search locations"
+            aria-label="Search locations"
+            enterKeyHint="search"
+            autoCapitalize="off"
+            autoCorrect="off"
+            className="min-h-11 w-full rounded-xl bg-zinc-900 pl-10 pr-3 text-base text-zinc-100 ring-1 ring-white/5 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/60"
+          />
+        </div>
         <div className="flex gap-2">
           {CHIPS.map((c) => (
             <button
@@ -118,6 +112,7 @@ export default function LocationsView() {
           </ul>
         )}
       </div>
+      {data.locations.length > 0 && <Fab label="New location" disabled={!online} onClick={() => setCreating(true)} />}
       <LocationForm open={creating} onClose={() => setCreating(false)} />
     </>
   );

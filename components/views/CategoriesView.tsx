@@ -4,6 +4,9 @@ import { useState } from "react";
 import CategoryForm from "@/components/forms/CategoryForm";
 import Header from "@/components/Header";
 import EmptyState from "@/components/ui/EmptyState";
+import IconButton from "@/components/ui/IconButton";
+import { PlusIcon } from "@/components/ui/icons";
+import { CARD } from "@/components/ui/styles";
 import { useTrip } from "@/lib/store";
 import type { Category } from "@/lib/types";
 
@@ -21,15 +24,9 @@ export default function CategoriesView() {
         title="Categories"
         back
         action={
-          <button
-            type="button"
-            aria-label="New category"
-            disabled={!online}
-            onClick={() => setCreating(true)}
-            className="flex size-11 items-center justify-center rounded-lg text-2xl text-zinc-100 active:bg-zinc-800 disabled:opacity-50"
-          >
-            +
-          </button>
+          <IconButton label="New category" disabled={!online} onClick={() => setCreating(true)}>
+            <PlusIcon />
+          </IconButton>
         }
       />
       {data.categories.length === 0 ? (
@@ -43,7 +40,7 @@ export default function CategoriesView() {
                 <button
                   type="button"
                   onClick={() => setEditing(c)}
-                  className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 px-3 text-left active:bg-zinc-800"
+                  className={`flex min-h-14 w-full items-center gap-3 px-3 text-left active:bg-zinc-800 ${CARD}`}
                 >
                   <span aria-hidden="true" className="w-8 text-center text-2xl">{c.emoji ?? "🏷️"}</span>
                   <span className="min-w-0 flex-1 truncate text-base text-zinc-100">{c.name}</span>

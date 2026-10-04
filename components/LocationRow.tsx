@@ -1,6 +1,7 @@
 "use client";
 
-import MapsButton from "@/components/ui/MapsButton";
+import DirectionsButton from "@/components/ui/DirectionsButton";
+import { CARD } from "@/components/ui/styles";
 import { navigate } from "@/lib/router";
 import { categoryById, locationById } from "@/lib/selectors";
 import type { Location, TripData } from "@/lib/types";
@@ -18,11 +19,11 @@ export default function LocationRow({ location: l, data }: { location: Location;
   const cat = categoryById(data, l.category_id);
   const sub = [l.city, cat?.name].filter(Boolean).join(" · ");
   return (
-    <li className="flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900">
+    <li className={`flex items-center gap-2 pr-2 ${CARD}`}>
       <button
         type="button"
         onClick={() => navigate(`/location/${encodeURIComponent(l.id)}`)}
-        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl py-2 pl-3 text-left active:bg-zinc-800"
+        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl py-2 pl-3 text-left active:bg-zinc-800"
       >
         <span aria-hidden="true" className="text-2xl">{l.emoji}</span>
         <span className="min-w-0 flex-1">
@@ -32,7 +33,7 @@ export default function LocationRow({ location: l, data }: { location: Location;
         </span>
         <TypeChip type={l.type} />
       </button>
-      <MapsButton lat={l.lat} lng={l.lng} compact />
+      <DirectionsButton lat={l.lat} lng={l.lng} />
     </li>
   );
 }

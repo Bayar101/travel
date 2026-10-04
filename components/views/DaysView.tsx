@@ -6,6 +6,8 @@ import Header from "@/components/Header";
 import { useToast } from "@/components/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
+import Fab from "@/components/ui/Fab";
+import { CARD } from "@/components/ui/styles";
 import { logout } from "@/lib/api-client";
 import { claimScroll, navigate } from "@/lib/router";
 import { stayForNight, todayISO } from "@/lib/selectors";
@@ -54,20 +56,7 @@ export default function DaysView() {
 
   return (
     <>
-      <Header
-        title="Days"
-        action={
-          <button
-            type="button"
-            aria-label="New day"
-            disabled={!online}
-            onClick={() => setCreating(true)}
-            className="flex size-11 items-center justify-center rounded-lg text-2xl text-zinc-100 active:bg-zinc-800 disabled:opacity-50"
-          >
-            +
-          </button>
-        }
-      />
+      <Header title="Days" />
       {days.length === 0 ? (
         <EmptyState emoji="📅" text="No days yet" cta={online ? { label: "New day", onClick: () => setCreating(true) } : undefined} />
       ) : (
@@ -93,8 +82,8 @@ export default function DaysView() {
                   <button
                     type="button"
                     onClick={() => navigate(`/day/${encodeURIComponent(d.id)}`)}
-                    className={`block min-h-14 w-full space-y-0.5 rounded-xl border bg-zinc-900 p-3 text-left active:bg-zinc-800 ${
-                      isToday ? "border-red-500" : "border-zinc-800"
+                    className={`block min-h-14 w-full space-y-0.5 p-3 text-left active:bg-zinc-800 ${CARD} ${
+                      isToday ? "ring-2 ring-red-500" : ""
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -120,6 +109,7 @@ export default function DaysView() {
           Log out
         </Button>
       </div>
+      {days.length > 0 && <Fab label="New day" disabled={!online} onClick={() => setCreating(true)} />}
       <DayForm open={creating} onClose={() => setCreating(false)} />
     </>
   );

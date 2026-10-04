@@ -5,7 +5,9 @@ import StayForm from "@/components/forms/StayForm";
 import Header from "@/components/Header";
 import AirbnbButton from "@/components/ui/AirbnbButton";
 import EmptyState from "@/components/ui/EmptyState";
-import MapsButton from "@/components/ui/MapsButton";
+import DirectionsButton from "@/components/ui/DirectionsButton";
+import Fab from "@/components/ui/Fab";
+import { CARD } from "@/components/ui/styles";
 import { locationById, todayISO } from "@/lib/selectors";
 import { formatStayRange, isCurrentStay } from "@/lib/stay-dates";
 import { useTrip } from "@/lib/store";
@@ -22,20 +24,7 @@ export default function StaysView() {
 
   return (
     <>
-      <Header
-        title="Stays"
-        action={
-          <button
-            type="button"
-            aria-label="New stay"
-            disabled={!online}
-            onClick={() => setCreating(true)}
-            className="flex size-11 items-center justify-center rounded-lg text-2xl text-zinc-100 active:bg-zinc-800 disabled:opacity-50"
-          >
-            +
-          </button>
-        }
-      />
+      <Header title="Stays" />
       {stays.length === 0 ? (
         <EmptyState emoji="🏠" text="No stays yet" cta={online ? { label: "Add stay", onClick: () => setCreating(true) } : undefined} />
       ) : (
@@ -46,12 +35,12 @@ export default function StaysView() {
             return (
               <li
                 key={s.id}
-                className={`rounded-xl border bg-zinc-900 ${now ? "border-red-500" : "border-zinc-800"}`}
+                className={`${CARD} ${now ? "ring-2 ring-red-500" : ""}`}
               >
                 <button
                   type="button"
                   onClick={() => setEditing(s)}
-                  className="flex min-h-14 w-full items-start gap-3 rounded-t-xl p-3 text-left active:bg-zinc-800"
+                  className="flex min-h-14 w-full items-start gap-3 rounded-t-2xl p-3 text-left active:bg-zinc-800"
                 >
                   <span aria-hidden="true" className="w-8 pt-0.5 text-center text-2xl">{loc?.emoji ?? "🏠"}</span>
                   <span className="min-w-0 flex-1">
@@ -66,14 +55,15 @@ export default function StaysView() {
                   </span>
                 </button>
                 <div className="flex gap-2 px-3 pb-3">
-                  {loc && <MapsButton lat={loc.lat} lng={loc.lng} />}
-                  <AirbnbButton url={s.airbnb_url} />
+                  {loc && <DirectionsButton lat={loc.lat} lng={loc.lng} full className="flex-1" />}
+                  <AirbnbButton url={s.airbnb_url} className="flex-1" />
                 </div>
               </li>
             );
           })}
         </ul>
       )}
+      {stays.length > 0 && <Fab label="New stay" disabled={!online} onClick={() => setCreating(true)} />}
       <StayForm open={creating} onClose={() => setCreating(false)} />
       <StayForm open={!!editing} stay={editing} onClose={() => setEditing(undefined)} />
     </>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Marker, type Map as MapLibreMap } from "maplibre-gl";
 import { useToast } from "@/components/Toast";
+import { LocateIcon } from "@/components/ui/icons";
 import { locateErrorMessage } from "@/lib/map-ui";
 
 export default function LocateButton({ map }: { map: MapLibreMap | null }) {
@@ -64,9 +65,9 @@ export default function LocateButton({ map }: { map: MapLibreMap | null }) {
       aria-busy={busy}
       onClick={locate}
       disabled={busy || !map}
-      className="flex size-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-2xl text-zinc-100 shadow-lg disabled:opacity-50"
+      className="flex size-12 items-center justify-center rounded-full bg-zinc-900 text-zinc-100 shadow-lg ring-1 ring-white/10 active:bg-zinc-800 disabled:opacity-50"
     >
-      {busy ? "…" : "◎"}
+      <LocateIcon size={22} className={busy ? "animate-pulse" : ""} />
     </button>
   );
 }
