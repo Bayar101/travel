@@ -61,6 +61,7 @@ async function trimMapCache() {
 }
 
 // Coalesce trims: one in flight, a burst of puts only schedules one rerun.
+// trimming is cleared synchronously right after the last `again` check (no gap for a lost rerun).
 let trimming = null;
 let again = false;
 function scheduleTrim() {
@@ -69,40 +70,53 @@ function scheduleTrim() {
     return trimming;
   }
   return (trimming = (async () => {
-    do {
-      again = false;
-      await trimMapCache();
-    } while (again);
-  })().finally(() => (trimming = null)));
+    try {
+      do {
+        again = false;
+        await trimMapCache();
+      } while (again);
+    } finally {
+      trimming = null;
+    }
+  })());
+}
+
+async function putMap(key, res) {
+  await (await caches.open(MAP.MAP_CACHE)).put(key, res);
+  await scheduleTrim();
 }
 
 function storeMapLater(event, key, res) {
   if (MAP.mapCacheable(res)) {
     const copy = res.clone();
-    keep(event, async () => {
-      await (await caches.open(MAP.MAP_CACHE)).put(key, copy);
-      await scheduleTrim();
-    });
+    keep(event, () => putMap(key, copy));
   }
   return res;
 }
 
 const META_TIMEOUT_MS = 4000;
-const timeoutAfter = (ms) => new Promise((resolve) => setTimeout(() => resolve(null), ms));
 
 // Style/TileJSON: network-first, but a slow or failing network falls back to the saved copy.
+// The cache write is chained into the fetch and registered with waitUntil up front, so a
+// late response (after the timeout already answered) is still saved.
 async function handleMeta(event, req, key) {
-  const cache = await caches.open(MAP.MAP_CACHE);
-  const network = fetch(req).then((res) => storeMapLater(event, key, res));
-  network.catch(() => {}); // avoid unhandled rejection if the timeout wins
+  const network = fetch(req).then(async (res) => {
+    if (MAP.mapCacheable(res)) await putMap(key, res.clone());
+    return res;
+  });
+  keep(event, () => network);
+  let timer;
+  const timeout = new Promise((resolve) => (timer = setTimeout(() => resolve(null), META_TIMEOUT_MS)));
   try {
-    const res = await Promise.race([network, timeoutAfter(META_TIMEOUT_MS)]);
+    const res = await Promise.race([network, timeout]);
     if (res && res.ok) return res;
-    const hit = await cache.match(key);
+    const hit = await (await caches.open(MAP.MAP_CACHE)).match(key);
     if (hit) return hit;
     return res || (await network);
   } catch {
-    return (await cache.match(key)) || Response.error();
+    return (await (await caches.open(MAP.MAP_CACHE)).match(key)) || Response.error();
+  } finally {
+    clearTimeout(timer);
   }
 }
 
