@@ -100,11 +100,10 @@ const META_TIMEOUT_MS = 4000;
 // The cache write is chained into the fetch and registered with waitUntil up front, so a
 // late response (after the timeout already answered) is still saved.
 async function handleMeta(event, req, key) {
-  const network = fetch(req).then(async (res) => {
-    if (MAP.mapCacheable(res)) await putMap(key, res.clone());
-    return res;
-  });
-  keep(event, () => network);
+  const network = fetch(req); // stays clean: a cache failure must never lose a good response
+  // Registered first, so its clone runs before anything consumes the body.
+  const saved = network.then((res) => (MAP.mapCacheable(res) ? putMap(key, res.clone()) : null));
+  keep(event, () => saved);
   let timer;
   const timeout = new Promise((resolve) => (timer = setTimeout(() => resolve(null), META_TIMEOUT_MS)));
   try {
