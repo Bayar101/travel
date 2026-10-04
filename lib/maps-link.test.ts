@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { extractShortLink, geocodeName, lookupMapsLink, NOMINATIM_URL, isAllowedMapsUrl, isMapsHost, looksLikeShortLink, placeNameFromUrl, resolveMapsLink } from "./maps-link";
+import { createGeocoder, createSerialGate, extractShortLink, geocodeName, LruCache, lookupMapsLink, NOMINATIM_URL, normalizePlaceName, isAllowedMapsUrl, isMapsHost, placeNameFromUrl, resolveMapsLink } from "./maps-link";
 
 describe("isMapsHost", () => {
   it("allows the listed hosts and google.<tld> subdomains", () => {
@@ -25,17 +25,6 @@ describe("isAllowedMapsUrl", () => {
     expect(isAllowedMapsUrl("https://user:pw@maps.app.goo.gl/abc")).toBe(false);
     expect(isAllowedMapsUrl("https://maps.app.goo.gl@evil.com/")).toBe(false);
     expect(isAllowedMapsUrl("not a url")).toBe(false);
-  });
-});
-
-describe("looksLikeShortLink", () => {
-  it("detects share links", () => {
-    expect(looksLikeShortLink("https://maps.app.goo.gl/5a2iNmeLGDpY9gc36")).toBe(true);
-    expect(looksLikeShortLink("  maps.app.goo.gl/5a2iNmeLGDpY9gc36?g_st=ic ")).toBe(true);
-    expect(looksLikeShortLink("Toko Fortune https://maps.app.goo.gl/5a2iNmeLGDpY9gc36")).toBe(true);
-    expect(looksLikeShortLink("https://goo.gl/maps/abc")).toBe(true);
-    expect(looksLikeShortLink("https://www.google.com/maps/place/X")).toBe(false);
-    expect(looksLikeShortLink("35.6, 139.7")).toBe(false);
   });
 });
 
@@ -138,20 +127,21 @@ describe("geocodeName", () => {
     expect(u.host).toBe("nominatim.openstreetmap.org");
     expect(u.searchParams.get("q")).toBe("x&q=y@evil.com/#");
   });
-  it("null on no hits, bad numbers or error status", async () => {
+  it("null on no hits or bad numbers; throws on an error status (not a cacheable miss)", async () => {
     await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes([])))).resolves.toBeNull();
     await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes([{ lat: "x", lon: "1" }])))).resolves.toBeNull();
     await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes([{ lat: "95", lon: "1" }])))).resolves.toBeNull();
-    await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes({ error: "x" }, 500)))).resolves.toBeNull();
+    await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes({ error: "x" }, 429)))).rejects.toThrow("geocoder status 429");
     await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes({})))).resolves.toBeNull();
   });
 });
 
 describe("lookupMapsLink", () => {
   const ok = () => new Response("", { status: 200 });
+  const lookup = (url: string, f: typeof fetch) => lookupMapsLink(url, f, createGeocoder({ minIntervalMs: 0 }));
   it("exact coordinates from the link", async () => {
     const f = vi.fn().mockResolvedValueOnce(redirect(FINAL)).mockResolvedValueOnce(ok());
-    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({
+    await expect(lookup("https://maps.app.goo.gl/a", f)).resolves.toEqual({
       ok: true, lat: -6.6398231, lng: 106.774047, name: "Toko Fortune", approximate: false,
     });
   });
@@ -160,7 +150,7 @@ describe("lookupMapsLink", () => {
       .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Senso-ji/data=!4m2!3m1!1s0x1?entry=gps"))
       .mockResolvedValueOnce(ok())
       .mockResolvedValueOnce(jsonRes([{ lat: "35.7148", lon: "139.7967" }]));
-    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({
+    await expect(lookup("https://maps.app.goo.gl/a", f)).resolves.toEqual({
       ok: true, lat: 35.7148, lng: 139.7967, name: "Senso-ji", approximate: true,
     });
     expect(new URL(f.mock.calls[2][0]).host).toBe("nominatim.openstreetmap.org");
@@ -170,18 +160,134 @@ describe("lookupMapsLink", () => {
       .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Nowhere/data=!4m2"))
       .mockResolvedValueOnce(ok())
       .mockResolvedValueOnce(jsonRes([]));
-    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: "Nowhere" });
+    await expect(lookup("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: "Nowhere" });
   });
   it("geocoder failure still returns the name", async () => {
     const f = vi.fn()
       .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Nowhere/data=!4m2"))
       .mockResolvedValueOnce(ok())
       .mockRejectedValueOnce(new TypeError("fetch failed"));
-    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: "Nowhere" });
+    await expect(lookup("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: "Nowhere" });
   });
   it("no name, no coordinates", async () => {
     const f = vi.fn().mockResolvedValueOnce(redirect("https://www.google.com/maps/data=!4m2")).mockResolvedValueOnce(ok());
-    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: null });
+    await expect(lookup("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: null });
     expect(f).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("normalizePlaceName", () => {
+  it("case, width and whitespace insensitive", () => {
+    expect(normalizePlaceName("  Senso-ji   Temple ")).toBe("senso-ji temple");
+    expect(normalizePlaceName("ＳＥＮＳＯ")).toBe("senso");
+  });
+});
+
+describe("LruCache", () => {
+  it("expires entries after the TTL", () => {
+    let t = 0;
+    const c = new LruCache<number | null>(10, 1000, () => t);
+    c.set("a", null);
+    expect(c.get("a")).toEqual({ value: null });
+    t = 999;
+    expect(c.get("a")).toEqual({ value: null });
+    t = 1000;
+    expect(c.get("a")).toBeUndefined();
+  });
+  it("evicts the least recently used past max", () => {
+    const c = new LruCache<number>(2, 60_000);
+    c.set("a", 1);
+    c.set("b", 2);
+    c.get("a"); // a is now most recent
+    c.set("c", 3);
+    expect(c.get("b")).toBeUndefined();
+    expect(c.get("a")).toEqual({ value: 1 });
+    expect(c.get("c")).toEqual({ value: 3 });
+  });
+});
+
+function fakeClock() {
+  let t = 0;
+  return {
+    now: () => t,
+    sleep: vi.fn(async (ms: number) => {
+      t += ms;
+    }),
+    advance: (ms: number) => {
+      t += ms;
+    },
+  };
+}
+
+describe("createSerialGate", () => {
+  it("runs one at a time with >= 1 s between starts", async () => {
+    const clock = fakeClock();
+    const gate = createSerialGate(1000, clock.now, clock.sleep);
+    const starts: number[] = [];
+    let running = 0;
+    let maxRunning = 0;
+    const job = () => gate(async () => {
+      starts.push(clock.now());
+      maxRunning = Math.max(maxRunning, ++running);
+      clock.advance(200); // request takes 200 ms
+      await Promise.resolve();
+      running--;
+      return starts.length;
+    });
+    await expect(Promise.all([job(), job(), job()])).resolves.toEqual([1, 2, 3]);
+    expect(starts).toEqual([0, 1000, 2000]);
+    expect(maxRunning).toBe(1);
+  });
+  it("no wait once the interval has passed; a failure does not block the queue", async () => {
+    const clock = fakeClock();
+    const gate = createSerialGate(1000, clock.now, clock.sleep);
+    await expect(gate(async () => { throw new Error("boom"); })).rejects.toThrow("boom");
+    clock.advance(1500);
+    await expect(gate(async () => "ok")).resolves.toBe("ok");
+    expect(clock.sleep).not.toHaveBeenCalled();
+  });
+});
+
+describe("createGeocoder", () => {
+  const hit = () => jsonRes([{ lat: "35.7148", lon: "139.7967" }]);
+  it("caches by normalized name, including no-match results", async () => {
+    const clock = fakeClock();
+    const geocode = createGeocoder({ now: clock.now, sleep: clock.sleep });
+    const f = vi.fn().mockResolvedValueOnce(hit()).mockResolvedValueOnce(jsonRes([]));
+    await expect(geocode("Senso-ji", f)).resolves.toEqual({ lat: 35.7148, lng: 139.7967 });
+    await expect(geocode("  senso-JI ", f)).resolves.toEqual({ lat: 35.7148, lng: 139.7967 });
+    await expect(geocode("Nowhere", f)).resolves.toBeNull();
+    await expect(geocode("nowhere", f)).resolves.toBeNull();
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+  it("does not cache failures; refetches after 24 h", async () => {
+    const clock = fakeClock();
+    const geocode = createGeocoder({ now: clock.now, sleep: clock.sleep });
+    const f = vi.fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(jsonRes({}, 503))
+      .mockResolvedValueOnce(hit())
+      .mockResolvedValueOnce(hit());
+    await expect(geocode("A", f)).rejects.toThrow();
+    await expect(geocode("A", f)).rejects.toThrow();
+    await expect(geocode("A", f)).resolves.toEqual({ lat: 35.7148, lng: 139.7967 });
+    await geocode("A", f);
+    expect(f).toHaveBeenCalledTimes(3);
+    clock.advance(24 * 60 * 60 * 1000);
+    await geocode("A", f);
+    expect(f).toHaveBeenCalledTimes(4);
+  });
+  it("spaces Nominatim requests >= 1 s apart; cache hits skip the gate", async () => {
+    const clock = fakeClock();
+    const geocode = createGeocoder({ now: clock.now, sleep: clock.sleep });
+    const at: number[] = [];
+    const f = vi.fn(async () => {
+      at.push(clock.now());
+      return hit();
+    });
+    await Promise.all([geocode("a", f), geocode("b", f), geocode("c", f)]);
+    expect(at).toEqual([0, 1000, 2000]);
+    await geocode("a", f);
+    expect(f).toHaveBeenCalledTimes(3);
   });
 });

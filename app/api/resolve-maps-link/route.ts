@@ -1,4 +1,5 @@
 import { handler, HttpError, json, readJson } from "@/lib/api-handler";
+import { redactError } from "@/lib/logger";
 import { isAllowedMapsUrl, lookupMapsLink } from "@/lib/maps-link";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,8 @@ export const POST = handler("api.resolve_maps_link", async ({ req, request_id, l
       : msg === "host not allowed" ? "redirect_host_not_allowed"
       : msg === "too many redirects" ? "too_many_redirects"
       : "network";
-    log.warn("maps_link_unresolved", { request_id, host, reason });
+    // Boundary log for the failure, once: error object with the URL-bearing message redacted.
+    log.warn("maps_link_unresolved", { request_id, host, reason }, redactError(err, reason));
     return json(UNREADABLE, 422);
   }
 });

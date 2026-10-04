@@ -24,11 +24,6 @@ export function isAllowedMapsUrl(raw: string): boolean {
 
 const SHORT_LINK = /(?:https?:\/\/)?(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/[^\s]+/i;
 
-/** True when the text contains a Google Maps short link (app "Share → Copy link"). */
-export function looksLikeShortLink(text: string): boolean {
-  return SHORT_LINK.test(text);
-}
-
 /** The first short link in pasted text, normalised to https. */
 export function extractShortLink(text: string): string | null {
   const m = text.match(SHORT_LINK);
@@ -62,7 +57,7 @@ export interface ResolvedLink {
   name: string | null;
 }
 
-export const MAX_HOPS = 5;
+const MAX_HOPS = 5;
 export const TIMEOUT_MS = 5000;
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -94,9 +89,13 @@ export async function resolveMapsLink(start: string, fetchImpl: Fetch = fetch): 
 
 // Fixed host: the user only ever controls the q= value.
 export const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
-const USER_AGENT = "japan-trip-planner/1.0 (personal)";
+// Nominatim usage policy: identify the app; max 1 request/s; cache results.
+const USER_AGENT = "japan-trip-planner/1.0 (personal single-user trip planner; geocodes Google Maps share links)";
 
-/** First Nominatim hit in Japan for a place name; null if none / unusable. Throws on network error. */
+/**
+ * First Nominatim hit in Japan for a place name; null if none / unusable (a real "no match").
+ * Throws on network error or an error status (429/5xx: transient, must not be cached).
+ */
 export async function geocodeName(name: string, fetchImpl: Fetch = fetch): Promise<LatLng | null> {
   const u = new URL(NOMINATIM_URL);
   u.search = new URLSearchParams({ format: "jsonv2", limit: "1", countrycodes: "jp", q: name }).toString();
@@ -108,7 +107,7 @@ export async function geocodeName(name: string, fetchImpl: Fetch = fetch): Promi
   });
   if (!res.ok) {
     await res.body?.cancel().catch(() => {});
-    return null;
+    throw new Error(`geocoder status ${res.status}`);
   }
   const body: unknown = await res.json().catch(() => null);
   const hit = Array.isArray(body) ? (body[0] as { lat?: unknown; lon?: unknown } | undefined) : undefined;
@@ -120,6 +119,82 @@ export async function geocodeName(name: string, fetchImpl: Fetch = fetch): Promi
   return { lat, lng };
 }
 
+/** Cache key: width-folded, case-insensitive, whitespace-collapsed. */
+export function normalizePlaceName(name: string): string {
+  return name.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Small in-memory LRU with a TTL (Map keeps insertion order: first key = least recent). */
+export class LruCache<V> {
+  private entries = new Map<string, { value: V; expires: number }>();
+  constructor(
+    private max: number,
+    private ttlMs: number,
+    private now: () => number = Date.now,
+  ) {}
+
+  /** `{ value }` on a fresh hit (value may itself be null), else undefined. */
+  get(key: string): { value: V } | undefined {
+    const e = this.entries.get(key);
+    if (!e) return undefined;
+    this.entries.delete(key);
+    if (this.now() >= e.expires) return undefined;
+    this.entries.set(key, e); // most recent
+    return { value: e.value };
+  }
+
+  set(key: string, value: V): void {
+    this.entries.delete(key);
+    this.entries.set(key, { value, expires: this.now() + this.ttlMs });
+    while (this.entries.size > this.max) this.entries.delete(this.entries.keys().next().value!);
+  }
+}
+
+type Sleep = (ms: number) => Promise<void>;
+const realSleep: Sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Runs tasks one at a time, starting each at least `minIntervalMs` after the previous start. */
+export function createSerialGate(minIntervalMs: number, now: () => number = Date.now, sleep: Sleep = realSleep) {
+  let tail: Promise<unknown> = Promise.resolve();
+  let lastStart = -Infinity;
+  return <T>(task: () => Promise<T>): Promise<T> => {
+    const run = tail.then(async () => {
+      const wait = lastStart + minIntervalMs - now();
+      if (wait > 0) await sleep(wait);
+      lastStart = now();
+      return task();
+    });
+    tail = run.catch(() => {});
+    return run;
+  };
+}
+
+export type Geocoder = (name: string, fetchImpl?: Fetch) => Promise<LatLng | null>;
+
+/** geocodeName behind a 1 req/s gate and an LRU cache (hits and no-matches; never failures). */
+export function createGeocoder(opts: {
+  minIntervalMs?: number;
+  ttlMs?: number;
+  max?: number;
+  now?: () => number;
+  sleep?: Sleep;
+} = {}): Geocoder {
+  const now = opts.now ?? Date.now;
+  const cache = new LruCache<LatLng | null>(opts.max ?? 100, opts.ttlMs ?? 24 * 60 * 60 * 1000, now);
+  const gate = createSerialGate(opts.minIntervalMs ?? 1000, now, opts.sleep);
+  return async (name, fetchImpl = fetch) => {
+    const key = normalizePlaceName(name);
+    const cached = cache.get(key);
+    if (cached) return cached.value;
+    const ll = await gate(() => geocodeName(name, fetchImpl));
+    cache.set(key, ll);
+    return ll;
+  };
+}
+
+// One per server instance: the gate and cache must be shared across requests.
+const sharedGeocoder = createGeocoder();
+
 export type LookupResult =
   | { ok: true; lat: number; lng: number; name: string | null; approximate: boolean }
   | { ok: false; name: string | null };
@@ -128,11 +203,15 @@ export type LookupResult =
  * Link → coordinates. Exact when the link has them; else geocode its place name (approximate).
  * Throws only on link-following failures (disallowed host, hops, network); geocoder errors → not found.
  */
-export async function lookupMapsLink(start: string, fetchImpl: Fetch = fetch): Promise<LookupResult> {
+export async function lookupMapsLink(
+  start: string,
+  fetchImpl: Fetch = fetch,
+  geocode: Geocoder = sharedGeocoder,
+): Promise<LookupResult> {
   const r = await resolveMapsLink(start, fetchImpl);
   if (!r) return { ok: false, name: null };
   if (r.ll) return { ok: true, ...r.ll, name: r.name, approximate: false };
   if (!r.name) return { ok: false, name: null };
-  const g = await geocodeName(r.name, fetchImpl).catch(() => null);
+  const g = await geocode(r.name, fetchImpl).catch(() => null);
   return g ? { ok: true, ...g, name: r.name, approximate: true } : { ok: false, name: r.name };
 }

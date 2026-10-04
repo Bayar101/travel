@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLogger } from "@/lib/logger";
+import { createLogger, redactError } from "@/lib/logger";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -73,5 +73,24 @@ describe("logger", () => {
     expect(rec.message).toBe("m");
     expect(rec.level).toBe("INFO");
     expect(rec.service).toBe("trip-planner");
+  });
+
+  it("redactError keeps name + stack frames, replaces the message everywhere", () => {
+    const url = "https://maps.app.goo.gl/SECRET?g_st=ic";
+    const orig = new TypeError(`fetch ${url} failed`);
+    const safe = redactError(orig, "network");
+    expect(safe).toBeInstanceOf(Error);
+    expect(safe.name).toBe("TypeError");
+    expect(safe.message).toBe("network");
+    expect(safe.stack).toMatch(/^TypeError: network\n\s+at /);
+    expect(safe.stack).not.toContain("SECRET");
+    const { log } = capture();
+    createLogger("x").warn("w", undefined, safe);
+    expect(log.mock.calls[0][0]).not.toContain("SECRET");
+  });
+  it("redactError handles non-Errors and multi-line messages", () => {
+    expect(redactError("x https://a/b", "r").name).toBe("NonError");
+    const e = new Error("line1 https://a/SECRET\nline2 SECRET");
+    expect(redactError(e, "r").stack).not.toContain("SECRET");
   });
 });

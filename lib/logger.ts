@@ -46,3 +46,15 @@ export function createLogger(name: string): Logger {
     error: (m, f, e) => emit("ERROR", m, f, e),
   };
 }
+
+/**
+ * Copy of `err` safe to log when its message may embed user data (URLs, names): same name and
+ * stack frames, but the message (and the message lines heading the stack) replaced by `message`.
+ */
+export function redactError(err: unknown, message: string): Error {
+  const safe = new Error(message);
+  safe.name = err instanceof Error ? err.name : "NonError";
+  const frames = err instanceof Error && err.stack ? err.stack.split("\n").filter((l) => /^\s+at /.test(l)) : [];
+  safe.stack = [`${safe.name}: ${message}`, ...frames].join("\n");
+  return safe;
+}
