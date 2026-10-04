@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, showLoadError } from "./sync-logic";
+import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, showLoadError, SYNC_THROTTLE_MS } from "./sync-logic";
 
 const req = { force: false, online: true, lastSync: 0, now: 10_000_000, minMs: 300_000 };
 
@@ -50,6 +50,17 @@ describe("requestSync / finishSync", () => {
     const running = { running: true, queuedForce: false };
     expect(requestSync(running, req).gate).toEqual(running);
     expect(finishSync(running).followUp).toBe(false);
+  });
+});
+
+describe("SYNC_THROTTLE_MS", () => {
+  const r = { ...req, minMs: SYNC_THROTTLE_MS };
+  it("is 30 s (route change / focus syncs are cheap 304s)", () => {
+    expect(SYNC_THROTTLE_MS).toBe(30_000);
+  });
+  it("skips within 30 s, starts after", () => {
+    expect(requestSync(IDLE_GATE, { ...r, lastSync: r.now - 29_999 }).start).toBe(false);
+    expect(requestSync(IDLE_GATE, { ...r, lastSync: r.now - 30_000 }).start).toBe(true);
   });
 });
 

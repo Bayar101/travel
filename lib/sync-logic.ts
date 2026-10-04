@@ -29,6 +29,9 @@ export function acceptFetched(
   return localVersion === null || !writeRaced || fetchedVersion >= localVersion;
 }
 
+/** Min gap between non-forced syncs (route change, focus, visibility). A 304 costs ~200 B. */
+export const SYNC_THROTTLE_MS = 30_000;
+
 export interface SyncGate {
   running: boolean;
   queuedForce: boolean;

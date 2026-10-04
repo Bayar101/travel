@@ -3,11 +3,10 @@
 import { del, get, set } from "idb-keyval";
 import { useEffect, useSyncExternalStore } from "react";
 import { etagFor } from "./etag";
-import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, type SyncGate } from "./sync-logic";
+import { acceptFetched, finishSync, IDLE_GATE, planWrite, requestSync, SYNC_THROTTLE_MS, type SyncGate } from "./sync-logic";
 import type { TripData } from "./types";
 
 const IDB_KEY = "trip-data-v1";
-const MIN_SYNC_MS = 5 * 60 * 1000;
 
 export interface TripState {
   data: TripData | null;
@@ -86,7 +85,7 @@ export function sync(opts: { force?: boolean } = {}): Promise<void> {
     online: state.online,
     lastSync,
     now: Date.now(),
-    minMs: MIN_SYNC_MS,
+    minMs: SYNC_THROTTLE_MS,
   });
   gate = r.gate;
   if (!r.start) return Promise.resolve();
@@ -129,6 +128,10 @@ function onVisibility(): void {
   if (document.visibilityState === "visible") void sync();
 }
 
+function onFocus(): void {
+  void sync();
+}
+
 function onOnline(): void {
   setState({ online: true });
   void sync();
@@ -141,10 +144,12 @@ function onOffline(): void {
 async function start(): Promise<void> {
   if (started) return;
   started = true;
+  lastSync = Date.now(); // startup forces its own sync below; throttle early route/focus syncs
   setState({ online: navigator.onLine });
   window.addEventListener("online", onOnline);
   window.addEventListener("offline", onOffline);
   document.addEventListener("visibilitychange", onVisibility);
+  window.addEventListener("focus", onFocus);
   try {
     const saved = await get<Persisted>(IDB_KEY);
     if (saved?.data && !state.data) setState({ data: saved.data });
