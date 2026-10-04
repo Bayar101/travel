@@ -8,7 +8,7 @@ Spec: `plan.md` (repo root). This file = build order. Each task self-contained; 
 - Package manager npm. Tests: Vitest (`npm test` = `vitest run`). Lint: `npm run lint`. Build must pass: `npm run build`.
 - Dark theme only. Palette: bg `zinc-950`, cards `zinc-900`, borders `zinc-800`, text `zinc-100`/`zinc-400`, accent `red-500`, notes `amber`, destructive `red-600`.
 - Mobile first: body text ≥ 16px, tap targets ≥ 44px (`min-h-11`), layout column `max-w-md mx-auto`, no horizontal scroll, safe-area insets.
-- No extra runtime deps beyond: `next`, `react`, `react-dom`, `@supabase/supabase-js` (server only), `jose`, `idb-keyval`. No UI kits, icon libs, date libs, map libs, web fonts (system font stack).
+- No extra runtime deps beyond: `next`, `react`, `react-dom`, `@supabase/supabase-js` (server only), `jose`, `idb-keyval`. No UI kits, icon libs, date libs, web fonts (system font stack). Map lib `maplibre-gl` allowed only in `components/map/*` (lazy-loaded by `MapView`).
 - Supabase accessed ONLY server-side with service role key (`import 'server-only'`). Browser never imports supabase-js.
 - DB/JSON field names `snake_case` everywhere (types mirror DB columns).
 - Single page app: `app/page.tsx` renders client `<App/>`; views switched by hash routes (`#/`, `#/day/<id>`, `#/locations`, `#/location/<id>`, `#/categories`, `#/stays`). Only other page: `app/login/page.tsx`.

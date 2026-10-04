@@ -19,3 +19,22 @@ html {
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+
+/* Map pins: root is MapLibre's (it sets transform); visuals + scale live on the inner span. */
+.map-pin-root {
+  width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  display: grid; place-items: center;
+}
+.map-pin {
+  width: 36px; height: 36px; border-radius: 9999px; display: grid; place-items: center;
+  font-size: 20px; background: #18181b; border: 2px solid #52525b; box-shadow: 0 2px 6px #0009;
+  transition: transform 0.15s;
+}
+.map-pin[data-type="area"] { width: 44px; height: 44px; font-size: 24px; border: 3px solid #ef4444; }
+.map-pin-root[data-selected="true"] { z-index: 2; }
+.map-pin-root[data-selected="true"] .map-pin { transform: scale(1.2); border-color: #f87171; }
+.map-me {
+  width: 18px; height: 18px; border-radius: 9999px; background: #3b82f6; border: 3px solid #fff;
+  box-shadow: 0 0 0 0 #3b82f680; animation: map-me-pulse 2s infinite;
+}
+@keyframes map-me-pulse { to { box-shadow: 0 0 0 16px #3b82f600; } }

@@ -6,6 +6,7 @@ import DayDetailView from "./views/DayDetailView";
 import DaysView from "./views/DaysView";
 import LocationDetailView from "./views/LocationDetailView";
 import LocationsView from "./views/LocationsView";
+import MapView from "./views/MapView";
 import StaysView from "./views/StaysView";
 import OfflineBadge from "./OfflineBadge";
 import RegisterSW from "./RegisterSW";
@@ -57,7 +58,7 @@ function View({ route }: { route: Route }) {
     case "stays":
       return <StaysView />;
     case "map":
-      return null;
+      return <MapView />;
   }
 }
 
@@ -69,7 +70,7 @@ export default function App() {
     <ToastProvider>
       <RegisterSW />
       <div className="mx-auto min-h-dvh max-w-md pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
-        {!online && <OfflineBadge />}
+        {!online && route.view !== "map" && <OfflineBadge />}
         {data ? <View route={route} /> : showLoadError({ data, loading, error, online }) ? <LoadError online={online} /> : <Skeleton />}
       </div>
       <BottomNav route={route} />

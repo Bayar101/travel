@@ -6,6 +6,7 @@ const TABS = [
   { path: "/", label: "Days", emoji: "📅", views: ["days", "day"] },
   { path: "/locations", label: "Locations", emoji: "📍", views: ["locations", "location", "categories"] },
   { path: "/stays", label: "Stays", emoji: "🏠", views: ["stays"] },
+  { path: "/map", label: "Map", emoji: "🗺️", views: ["map"] },
 ] as const;
 
 export default function BottomNav({ route }: { route: Route }) {
