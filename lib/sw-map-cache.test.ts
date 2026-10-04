@@ -20,6 +20,18 @@ describe("sw-map-cache", () => {
     expect(mc.keysToTrim([1, 2, 3, 4, 5], 5)).toEqual([]);
     expect(mc.keysToTrim([1, 2, 3, 4, 5, 6, 7], 5)).toEqual([1, 2]);
   });
+  it("keys tiles version-agnostically", () => {
+    const k = (u: string) => mc.mapCacheKey(new URL(u));
+    const want = "https://tiles.openfreemap.org/planet/_/10/909/403.pbf";
+    expect(k("https://tiles.openfreemap.org/planet/20260927_080001_pt/10/909/403.pbf")).toBe(want);
+    expect(k("https://tiles.openfreemap.org/planet/20261004_000001_pt/10/909/403.pbf")).toBe(want);
+    for (const u of [
+      "https://tiles.openfreemap.org/styles/dark",
+      "https://tiles.openfreemap.org/planet",
+      "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf",
+      "https://tiles.openfreemap.org/planet/v1/10/909/403.png",
+    ]) expect(k(u)).toBe(u);
+  });
   it("exposes constants", () => {
     expect(mc.MAP_CACHE).toBe("map-v1");
     expect(mc.MAP_MAX_ENTRIES).toBe(2500);

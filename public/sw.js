@@ -1,6 +1,6 @@
-// Bump VERSION on any change to this file; old caches are purged on activate.
+// Bump VERSION on any change to this file or sw-map-cache.js; old caches are purged on activate.
 importScripts("/sw-map-cache.js");
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC = `trip-static-${VERSION}`;
 const PAGES = `trip-pages-${VERSION}`;
 const OTHER = `trip-other-${VERSION}`;
@@ -60,27 +60,59 @@ async function trimMapCache() {
   for (const req of MAP.keysToTrim(await cache.keys(), MAP.MAP_MAX_ENTRIES)) await cache.delete(req);
 }
 
-function storeMapLater(event, req, res) {
+// Coalesce trims: one in flight, a burst of puts only schedules one rerun.
+let trimming = null;
+let again = false;
+function scheduleTrim() {
+  if (trimming) {
+    again = true;
+    return trimming;
+  }
+  return (trimming = (async () => {
+    do {
+      again = false;
+      await trimMapCache();
+    } while (again);
+  })().finally(() => (trimming = null)));
+}
+
+function storeMapLater(event, key, res) {
   if (MAP.mapCacheable(res)) {
     const copy = res.clone();
     keep(event, async () => {
-      await (await caches.open(MAP.MAP_CACHE)).put(req, copy);
-      await trimMapCache();
+      await (await caches.open(MAP.MAP_CACHE)).put(key, copy);
+      await scheduleTrim();
     });
   }
   return res;
 }
 
-function handleMap(event, req, kind) {
-  if (kind === "meta") {
-    return fetch(req)
-      .then((res) => storeMapLater(event, req, res))
-      .catch(async () => (await (await caches.open(MAP.MAP_CACHE)).match(req)) || Response.error());
+const META_TIMEOUT_MS = 4000;
+const timeoutAfter = (ms) => new Promise((resolve) => setTimeout(() => resolve(null), ms));
+
+// Style/TileJSON: network-first, but a slow or failing network falls back to the saved copy.
+async function handleMeta(event, req, key) {
+  const cache = await caches.open(MAP.MAP_CACHE);
+  const network = fetch(req).then((res) => storeMapLater(event, key, res));
+  network.catch(() => {}); // avoid unhandled rejection if the timeout wins
+  try {
+    const res = await Promise.race([network, timeoutAfter(META_TIMEOUT_MS)]);
+    if (res && res.ok) return res;
+    const hit = await cache.match(key);
+    if (hit) return hit;
+    return res || (await network);
+  } catch {
+    return (await cache.match(key)) || Response.error();
   }
+}
+
+function handleMap(event, req, kind) {
+  const key = MAP.mapCacheKey(new URL(req.url));
+  if (kind === "meta") return handleMeta(event, req, key).catch(() => Response.error());
   return caches
     .open(MAP.MAP_CACHE)
-    .then((c) => c.match(req))
-    .then((hit) => hit || fetch(req).then((res) => storeMapLater(event, req, res)))
+    .then((c) => c.match(key))
+    .then((hit) => hit || fetch(req).then((res) => storeMapLater(event, key, res)))
     .catch(() => Response.error());
 }
 

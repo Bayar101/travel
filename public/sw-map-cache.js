@@ -16,11 +16,18 @@
     return keys.length > max ? keys.slice(0, keys.length - max) : [];
   }
 
+  // Tile URLs embed a weekly version (/planet/<ver>/z/x/y.pbf); key them version-agnostically
+  // so saved areas stay reachable after the TileJSON moves to a new version.
+  function mapCacheKey(url) {
+    const m = /^\/planet\/[^/]+\/(\d+)\/(\d+)\/(\d+)\.pbf$/.exec(url.pathname);
+    return m ? "https://" + MAP_HOST + "/planet/_/" + m[1] + "/" + m[2] + "/" + m[3] + ".pbf" : url.href;
+  }
+
   function mapCacheable(res) {
     return res.ok && (res.type === "cors" || res.type === "basic");
   }
 
-  const api = { MAP_HOST, MAP_CACHE, MAP_MAX_ENTRIES, mapRequestKind, keysToTrim, mapCacheable };
+  const api = { MAP_HOST, MAP_CACHE, MAP_MAX_ENTRIES, mapRequestKind, keysToTrim, mapCacheKey, mapCacheable };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.MapCache = api;
 })(typeof self !== "undefined" ? self : globalThis);
