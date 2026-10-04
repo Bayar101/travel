@@ -13,8 +13,8 @@ export default function CategoryChips({ chips, value, onChange }: {
           type="button"
           aria-pressed={c.key === value}
           onClick={() => onChange(c.key)}
-          className={`min-h-11 shrink-0 rounded-full border px-4 text-base whitespace-nowrap shadow ${
-            c.key === value ? "border-red-500 bg-red-500 text-white" : "border-zinc-700 bg-zinc-900/90 text-zinc-100"
+          className={`min-h-11 shrink-0 rounded-full border px-4 text-base font-medium whitespace-nowrap shadow-[0_1px_3px_#0000004d] ${
+            c.key === value ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]" : "border-transparent bg-white text-[#3c4043] active:bg-zinc-100"
           }`}
         >
           {c.label}

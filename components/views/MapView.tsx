@@ -16,7 +16,7 @@ const loadLocate = () => import("@/components/map/LocateButton");
 
 const MapCanvas = dynamic(loadCanvas, {
   ssr: false,
-  loading: () => <div className="absolute inset-0 animate-pulse bg-zinc-900" />,
+  loading: () => <div className="absolute inset-0 animate-pulse bg-[#f5f3ef]" />,
 });
 const LocateButton = dynamic(loadLocate, { ssr: false });
 
@@ -45,16 +45,16 @@ interface Unavailable {
   retry?: () => void;
 }
 
+// Overlays sit on the light map: Google-ish light surface, blue text button.
+const OVERLAY = "absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center text-base text-[#3c4043]";
+const RETRY =
+  "min-h-11 rounded-full border border-[#dadce0] bg-white px-6 text-base font-medium text-[#1a73e8] shadow-[0_1px_3px_#0000004d] active:bg-[#e8f0fe] disabled:text-zinc-400";
+
 function MapLoadFailed({ online }: { online: boolean }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950 p-8 text-center text-base text-zinc-300">
+    <div className={`${OVERLAY} bg-[#f5f3ef]`}>
       <p>Map unavailable offline — open once online to save map data</p>
-      <button
-        type="button"
-        disabled={!online}
-        onClick={() => window.location.reload()}
-        className="min-h-11 rounded-xl bg-zinc-800 px-6 text-base font-medium text-zinc-100 active:bg-zinc-700 disabled:opacity-40"
-      >
+      <button type="button" disabled={!online} onClick={() => window.location.reload()} className={RETRY}>
         Retry
       </button>
     </div>
@@ -84,7 +84,7 @@ export default function MapView() {
   // PinCard (a Sheet) renders outside the z-0 map layer: inside it, the bottom nav would cover its footer.
   return (
     <>
-      <div className="fixed inset-x-0 top-0 bottom-(--nav-h) z-0 bg-zinc-950">
+      <div className="fixed inset-x-0 top-0 bottom-(--nav-h) z-0 bg-[#f5f3ef]">
         <MapErrorBoundary fallback={<MapLoadFailed online={online} />} onError={() => setCrashed(true)}>
           <MapCanvas
             locations={visible}
@@ -95,12 +95,10 @@ export default function MapView() {
             onMap={setMap}
           />
         </MapErrorBoundary>
-        {/* Scrim: chips stay legible over bright tiles/labels. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[calc(5.5rem+env(safe-area-inset-top))] bg-linear-to-b from-zinc-950/85 via-zinc-950/40 to-transparent" />
         <div className="pt-safe pointer-events-none absolute inset-x-0 top-0">
           <CategoryChips chips={chips} value={sel} onChange={setSel} />
           {!online && (
-            <p className="mx-4 mt-1 w-fit rounded-full bg-amber-950/90 px-3 py-1 text-sm text-amber-200">
+            <p className="mx-4 mt-1 w-fit rounded-full bg-white px-3 py-1 text-sm font-medium text-[#b06000] shadow-[0_1px_3px_#0000004d]">
               Map offline — showing saved areas
             </p>
           )}
@@ -113,15 +111,10 @@ export default function MapView() {
           </div>
         )}
         {unavailable && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 p-8 text-center text-base text-zinc-300">
+          <div className={`${OVERLAY} bg-[#f5f3ef]/95`}>
             <p>{unavailable.msg}</p>
             {unavailable.retry && (
-              <button
-                type="button"
-                disabled={!online}
-                onClick={unavailable.retry}
-                className="min-h-11 rounded-xl bg-zinc-800 px-6 text-base font-medium text-zinc-100 active:bg-zinc-700 disabled:opacity-40"
-              >
+              <button type="button" disabled={!online} onClick={unavailable.retry} className={RETRY}>
                 Retry
               </button>
             )}

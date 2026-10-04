@@ -15,3 +15,13 @@ export function loadCamera(): Camera | null {
 export function locateErrorMessage(code: number): string {
   return code === 1 ? "Location permission denied — enable it in Settings" : "Couldn't get your location";
 }
+
+const EARTH_CIRCUMFERENCE_M = 40075016.686;
+const MAX_ACCURACY_PX = 2000;
+
+/** Screen radius (px) of a GPS accuracy circle on a MapLibre map (512px tiles) at `zoom`. */
+export function accuracyRadiusPx(accuracyM: number, lat: number, zoom: number): number {
+  if (!Number.isFinite(accuracyM) || accuracyM <= 0) return 0;
+  const metresPerPx = (EARTH_CIRCUMFERENCE_M * Math.cos((lat * Math.PI) / 180)) / (512 * 2 ** zoom);
+  return Math.min(accuracyM / metresPerPx, MAX_ACCURACY_PX);
+}

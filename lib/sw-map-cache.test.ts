@@ -8,6 +8,8 @@ describe("sw-map-cache", () => {
   it("classifies requests", () => {
     const k = (u: string) => mc.mapRequestKind(new URL(u));
     expect(k("https://tiles.openfreemap.org/styles/dark")).toBe("meta");
+    expect(k("https://tiles.openfreemap.org/styles/liberty")).toBe("meta");
+    expect(k("https://tiles.openfreemap.org/natural_earth/ne2sr/4/14/6.png")).toBe("asset");
     expect(k("https://tiles.openfreemap.org/planet")).toBe("meta");
     expect(k("https://tiles.openfreemap.org/planet/20260927_080001_pt/10/909/403.pbf")).toBe("asset");
     expect(k("https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf")).toBe("asset");

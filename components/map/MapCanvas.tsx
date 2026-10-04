@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AttributionControl, getVersion, Map as MapLibreMap, Marker, setWorkerUrl } from "maplibre-gl";
+import { AttributionControl, getVersion, Map as MapLibreMap, Marker, setWorkerUrl, type StyleSwapOptions } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Location } from "@/lib/types";
 import { boundsFor } from "@/lib/map-data";
 import { DEFAULT_CAMERA, loadCamera, saveCamera } from "@/lib/map-ui";
+import { googleMapStyle, placeholderImage } from "@/lib/google-map-style";
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+// Liberty, recoloured to Google Maps' light palette as it loads.
+const STYLE_OPTS = { transformStyle: (_prev, next) => googleMapStyle(next) } satisfies StyleSwapOptions;
 const FIT = { padding: 48, maxZoom: 15 };
 
 // Served from public/ (scripts/copy-maplibre-worker.mjs): Turbopack gives maplibre a file://
@@ -24,17 +27,26 @@ interface Props {
   onMap?: (map: MapLibreMap | null) => void; // LocateButton needs the instance
 }
 
+// Google-style teardrop (24x32.6 grid); its tip (12,32.6) is the marker's bottom anchor.
+const PIN_SVG =
+  '<svg viewBox="0 0 24 32.6" aria-hidden="true" focusable="false"><path class="map-pin-body" d="M12 .75C5.8.75.75 5.6.75 11.7c0 7.9 9.6 19 10.4 20a1.1 1.1 0 0 0 1.7 0c.8-1 10.4-12.1 10.4-20C23.25 5.6 18.2.75 12 .75Z"/><circle cx="12" cy="11.7" r="7.6" fill="#fff"/></svg>';
+
 // MapLibre owns the marker root's `transform`, so the root stays unstyled and the
-// visuals (incl. selected scale) live on an inner span. Root is the 44px tap target.
+// visuals (incl. selected scale) live on an inner span. Root is the >=44px tap target,
+// bottom-anchored so the pin's tip sits on the coordinate.
 function pinElement(l: Location, onSelect: (id: string) => void): HTMLButtonElement {
   const el = document.createElement("button");
   el.type = "button";
   el.setAttribute("aria-label", l.name);
   el.className = "map-pin-root";
+  el.dataset.type = l.type;
   const face = document.createElement("span");
   face.className = "map-pin";
-  face.dataset.type = l.type;
-  face.textContent = l.emoji;
+  face.innerHTML = PIN_SVG;
+  const emoji = document.createElement("span");
+  emoji.className = "map-pin-emoji";
+  emoji.textContent = l.emoji;
+  face.appendChild(emoji);
   el.appendChild(face);
   el.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -73,7 +85,6 @@ export default function MapCanvas({ locations, selectedId, fitKey, onSelect, onU
       const b = cam ? null : boundsFor(seed.current);
       map = new MapLibreMap({
         container: box.current,
-        style: STYLE_URL,
         attributionControl: false,
         ...(cam
           ? { center: cam.center, zoom: cam.zoom }
@@ -85,6 +96,11 @@ export default function MapCanvas({ locations, selectedId, fitKey, onSelect, onU
       unavailableRef.current("This device can't show the map");
       return;
     }
+    map.setStyle(STYLE_URL, STYLE_OPTS);
+    // Liberty asks for a few icons its sprite lacks (e.g. some POI classes): show text only, no warning.
+    map.setMissingStyleImageResolver((id) => {
+      if (!map.hasImage(id)) map.addImage(id, placeholderImage());
+    });
     map.addControl(new AttributionControl({ compact: true }), "bottom-left");
     // MapLibre opens compact attribution once it has text; start collapsed ("i" only) instead.
     const collapseAttribution = () => {
@@ -108,7 +124,7 @@ export default function MapCanvas({ locations, selectedId, fitKey, onSelect, onU
       unavailableRef.current(null);
     });
     const retryStyle = () => {
-      if (!styleOk) map.setStyle(STYLE_URL, { diff: false });
+      if (!styleOk) map.setStyle(STYLE_URL, { ...STYLE_OPTS, diff: false });
     };
     map.on("error", () => {
       if (!styleOk) unavailableRef.current("Map unavailable offline — open once online to save map data", retryStyle);
@@ -144,7 +160,7 @@ export default function MapCanvas({ locations, selectedId, fitKey, onSelect, onU
       have?.marker.remove();
       const el = pinElement(l, (id) => selectRef.current(id));
       el.dataset.selected = String(l.id === selectedId);
-      const marker = new Marker({ element: el }).setLngLat([l.lng, l.lat]).addTo(map);
+      const marker = new Marker({ element: el, anchor: "bottom" }).setLngLat([l.lng, l.lat]).addTo(map);
       markers.current.set(l.id, { marker, el, sig });
     }
     // selectedId only seeds new elements; the effect below keeps it in sync

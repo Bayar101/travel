@@ -6,7 +6,7 @@ Full-screen map of all locations as pins, tap for rich details, center on my pos
 
 ## Decisions (approved)
 
-- Engine: **MapLibre GL JS** (`maplibre-gl`) + **OpenFreeMap** vector tiles (free, no key). Dark style: use OpenFreeMap dark style if available; else load `positron` and override paint colors to dark palette (bg `#09090b`, water `#0c1a2b`, roads `#3f3f46`, labels `#a1a1aa`).
+- Engine: **MapLibre GL JS** (`maplibre-gl`) + **OpenFreeMap** vector tiles (free, no key). Style: OpenFreeMap `liberty`, recoloured at load to Google Maps' light palette (`lib/google-map-style.ts`; land `#f5f3ef`, water `#aadaff`, white roads, amber motorways, flat grey buildings). Map controls are Google-style light; the pin card stays dark. (Originally the dark style.)
 - Placement: 4th bottom tab — **Days | Locations | Stays | Map**. Route `#/map`.
 - Pin tap: rich bottom card.
 - Offline: SW caches viewed map resources, capped ~50 MB (entry-count cap), oldest evicted.
@@ -25,7 +25,7 @@ Full-screen map of all locations as pins, tap for rich details, center on my pos
 
 ## Pins
 
-- One HTML marker per location (`maplibregl.Marker` with custom element): emoji in dark circle; **area** = larger circle (44px) with red-500 ring; **place** = 36px, zinc ring. Tap target ≥ 44px (padding).
+- One HTML marker per location (`maplibregl.Marker` with custom element): Google-style teardrop (anchor bottom) with the emoji in a white circle; **place** = red `#ea4335`, **area** = larger, darker `#b31412`. Tap target ≥ 44px.
 - Selected pin: scaled + accent ring.
 - Markers diffed by id on data/filter change (add/remove/update), not rebuilt every render.
 - Initial camera: fit bounds of visible pins (padding 48px, maxZoom 15); none → Tokyo (35.68, 139.76) zoom 10. Camera (center/zoom) remembered in module memory for the session; returning to tab restores it instead of re-fitting.
