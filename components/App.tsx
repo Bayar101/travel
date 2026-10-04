@@ -56,6 +56,8 @@ function View({ route }: { route: Route }) {
       return <CategoriesView />;
     case "stays":
       return <StaysView />;
+    case "map":
+      return null;
   }
 }
 

@@ -4,7 +4,8 @@ export type Route =
   | { view: "locations" }
   | { view: "location"; id: string }
   | { view: "categories" }
-  | { view: "stays" };
+  | { view: "stays" }
+  | { view: "map" };
 
 export const DEFAULT_ROUTE: Route = { view: "days" };
 
@@ -28,6 +29,7 @@ export function parseHash(hash: string): Route {
     case "locations":
     case "categories":
     case "stays":
+    case "map":
       return id ? DEFAULT_ROUTE : { view: name };
     default:
       return DEFAULT_ROUTE;

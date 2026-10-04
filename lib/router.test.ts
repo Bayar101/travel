@@ -19,4 +19,9 @@ describe("parseHash", () => {
     expect(parseHash("#/day/a%20b/")).toEqual({ view: "day", id: "a b" });
     expect(parseHash("#/stays/")).toEqual({ view: "stays" });
   });
+  it("parses the map route", () => {
+    expect(parseHash("#/map")).toEqual({ view: "map" });
+    expect(parseHash("#/map/")).toEqual({ view: "map" });
+    expect(parseHash("#/map/x")).toEqual({ view: "days" });
+  });
 });
