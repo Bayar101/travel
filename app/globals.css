@@ -38,3 +38,7 @@ html {
   box-shadow: 0 0 0 0 #3b82f680; animation: map-me-pulse 2s infinite;
 }
 @keyframes map-me-pulse { to { box-shadow: 0 0 0 16px #3b82f600; } }
+
+/* Day detail prev/next: incoming day slides in from the side it came from. */
+@keyframes day-in-right { from { opacity: 0; transform: translateX(32px); } }
+@keyframes day-in-left { from { opacity: 0; transform: translateX(-32px); } }

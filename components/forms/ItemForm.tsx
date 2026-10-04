@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "@/components/ui/Button";
 import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
 import { FormError, TextArea, TimeField } from "@/components/ui/fields";
+import { ChevronRightIcon, NoteIcon } from "@/components/ui/icons";
 import Sheet from "@/components/ui/Sheet";
 import LocationPicker from "@/components/LocationPicker";
 import { useToast } from "@/components/Toast";
@@ -11,7 +12,7 @@ import { create, remove, update } from "@/lib/api-client";
 import { itemPayload, itemToForm, validateItemForm, type ItemFormErrors, type ItemFormValues } from "@/lib/day-items";
 import { locationById } from "@/lib/selectors";
 import { useTrip } from "@/lib/store";
-import type { DayItem } from "@/lib/types";
+import type { DayItem, Location } from "@/lib/types";
 
 function Body({
   dayId,
@@ -21,7 +22,7 @@ function Body({
 }: {
   dayId: string;
   item?: DayItem;
-  mode?: "location" | "note"; // undefined for a new item: start at the choose step
+  mode?: "location" | "note"; // undefined for a new item: start on the location picker
   onClose: () => void;
 }) {
   const { data, online } = useTrip();
@@ -32,8 +33,8 @@ function Body({
   const [errors, setErrors] = useState<ItemFormErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [picking, setPicking] = useState(() => !item && mode === "location");
-  const [choosing, setChoosing] = useState(!item && !mode);
+  const [picking, setPicking] = useState(false); // nested picker for "Change" on the form
+  const [choosing, setChoosing] = useState(!item && mode !== "note"); // new item: picker is the first step
   const [confirming, setConfirming] = useState(false);
 
   if (!data) return null;
@@ -44,6 +45,12 @@ function Body({
   };
   const loc = locationById(data, v.location_id || null);
   const isLocation = v.mode === "location";
+  const pick = (l: Location) => {
+    edit((p) => ({ ...p, mode: "location", location_id: l.id }));
+    setErrors((p) => ({ ...p, location_id: undefined }));
+    setPicking(false);
+    setChoosing(false);
+  };
 
   async function save() {
     if (busy || !data) return;
@@ -64,17 +71,11 @@ function Body({
     }
   }
 
-  function choose(m: "location" | "note") {
-    setV((p) => ({ ...p, mode: m }));
-    setChoosing(false);
-    setPicking(m === "location");
-  }
-
   return (
     <>
       <Sheet
         open
-        title={choosing ? "Add to this day" : item ? "Edit item" : isLocation ? "Add location" : "Add note"}
+        title={choosing ? "Add to day" : item ? "Edit item" : isLocation ? "Add place" : "Add note"}
         onClose={busy ? () => {} : onClose}
         footer={
           choosing ? undefined : (
@@ -95,13 +96,25 @@ function Body({
         }
       >
         {choosing ? (
-          <div className="space-y-2">
-            <Button variant="secondary" className="w-full" onClick={() => choose("location")}>
-              📍 Location
-            </Button>
-            <Button variant="secondary" className="w-full" onClick={() => choose("note")}>
-              📝 Note
-            </Button>
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                edit((p) => ({ ...p, mode: "note", location_id: "" }));
+                setChoosing(false);
+              }}
+              className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-zinc-800 px-3 text-left transition-colors active:bg-zinc-700"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-950/60 text-amber-300">
+                <NoteIcon size={22} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-medium text-zinc-100">Add a note instead</span>
+                <span className="block truncate text-sm text-zinc-400">Train times, reminders, warnings</span>
+              </span>
+              <ChevronRightIcon size={20} className="text-zinc-500" />
+            </button>
+            <LocationPicker onPick={pick} />
           </div>
         ) : (
         <form
@@ -155,13 +168,7 @@ function Body({
         )}
       </Sheet>
       <Sheet open={picking} title="Choose location" onClose={() => setPicking(false)} autoFocus>
-        <LocationPicker
-          onPick={(l) => {
-            edit((p) => ({ ...p, location_id: l.id }));
-            setErrors((p) => ({ ...p, location_id: undefined }));
-            setPicking(false);
-          }}
-        />
+        <LocationPicker onPick={pick} />
       </Sheet>
       {item && (
         <ConfirmDeleteDialog
