@@ -1,9 +1,11 @@
 // Bump VERSION on any change to this file; old caches are purged on activate.
-const VERSION = "v2";
+importScripts("/sw-map-cache.js");
+const VERSION = "v3";
 const STATIC = `trip-static-${VERSION}`;
 const PAGES = `trip-pages-${VERSION}`;
 const OTHER = `trip-other-${VERSION}`;
-const KEEP = [STATIC, PAGES, OTHER];
+const MAP = self.MapCache;
+const KEEP = [STATIC, PAGES, OTHER, MAP.MAP_CACHE];
 const PAGE_PATHS = ["/", "/login"];
 
 // Only store clean 200s: never redirected (expired session -> /login), opaque, or errors.
@@ -53,6 +55,35 @@ function storePageLater(event, key, res) {
   return res;
 }
 
+async function trimMapCache() {
+  const cache = await caches.open(MAP.MAP_CACHE);
+  for (const req of MAP.keysToTrim(await cache.keys(), MAP.MAP_MAX_ENTRIES)) await cache.delete(req);
+}
+
+function storeMapLater(event, req, res) {
+  if (MAP.mapCacheable(res)) {
+    const copy = res.clone();
+    keep(event, async () => {
+      await (await caches.open(MAP.MAP_CACHE)).put(req, copy);
+      await trimMapCache();
+    });
+  }
+  return res;
+}
+
+function handleMap(event, req, kind) {
+  if (kind === "meta") {
+    return fetch(req)
+      .then((res) => storeMapLater(event, req, res))
+      .catch(async () => (await (await caches.open(MAP.MAP_CACHE)).match(req)) || Response.error());
+  }
+  return caches
+    .open(MAP.MAP_CACHE)
+    .then((c) => c.match(req))
+    .then((hit) => hit || fetch(req).then((res) => storeMapLater(event, req, res)))
+    .catch(() => Response.error());
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -80,6 +111,11 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  const mapKind = MAP.mapRequestKind(url);
+  if (mapKind) {
+    event.respondWith(handleMap(event, req, mapKind));
+    return;
+  }
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return; // network only, never cached
 

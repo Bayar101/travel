@@ -16,6 +16,6 @@ export const config = {
     // Public: Next assets (dir prefix) and exact public files/pages. Each name is
     // end-anchored so look-alikes (/api/login-x, /loginfoo, /sw.jsX) stay gated.
     // Must stay a literal (Next reads it statically); covered by lib/proxy-matcher.test.ts.
-    "/((?!(?:_next/static|_next/image)(?:/|$)|(?:favicon\\.ico|icon\\.svg|apple-icon(?:\\.png)?|manifest\\.webmanifest|sw\\.js|login|api/login)$).*)",
+    "/((?!(?:_next/static|_next/image)(?:/|$)|(?:favicon\\.ico|icon\\.svg|apple-icon(?:\\.png)?|manifest\\.webmanifest|sw\\.js|sw-map-cache\\.js|login|api/login)$).*)",
   ],
 };
