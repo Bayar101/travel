@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TripData, Location } from "./types";
-import { boundsFor, categoryChips, filterByCategory, normalizeSelection, plannedOn } from "./map-data";
+import { boundsFor, categoryChips, filterByCategory, normalizeSelection, plannedOn, selectedLocation } from "./map-data";
 
 const loc = (id: string, over: Partial<Location> = {}): Location => ({
   id, type: "place", parent_id: null, category_id: null, name: id, description: null,
@@ -93,4 +93,12 @@ describe("plannedOn", () => {
     ]);
   });
   it("empty when not planned", () => expect(plannedOn(data(), "u")).toEqual([]));
+});
+
+describe("selectedLocation", () => {
+  it("returns the location or null when missing/deleted", () => {
+    expect(selectedLocation(data(), "a")?.id).toBe("a");
+    expect(selectedLocation(data(), "gone")).toBeNull();
+    expect(selectedLocation(data(), null)).toBeNull();
+  });
 });

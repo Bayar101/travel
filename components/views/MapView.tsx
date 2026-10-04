@@ -4,13 +4,14 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useTrip } from "@/lib/store";
-import { categoryChips, filterByCategory, normalizeSelection, type CategorySelection } from "@/lib/map-data";
+import { categoryChips, filterByCategory, normalizeSelection, selectedLocation, type CategorySelection } from "@/lib/map-data";
 import CategoryChips from "@/components/map/CategoryChips";
 
 const MapCanvas = dynamic(() => import("@/components/map/MapCanvas"), {
   ssr: false,
   loading: () => <div className="absolute inset-0 animate-pulse bg-zinc-900" />,
 });
+const PinCard = dynamic(() => import("@/components/map/PinCard"), { ssr: false });
 const LocateButton = dynamic(() => import("@/components/map/LocateButton"), { ssr: false });
 
 export default function MapView() {
@@ -24,6 +25,12 @@ export default function MapView() {
   const sel = data ? normalizeSelection(data, rawSel) : "all";
   const visible = useMemo(() => (data ? filterByCategory(data.locations, sel) : []), [data, sel]);
   if (!data) return null;
+  const selected = selectedLocation(data, selectedId);
+  function selectFromCard(id: string) {
+    // A place/area outside the current filter would have no pin: show all categories.
+    if (!visible.some((l) => l.id === id)) setSel("all");
+    setSelectedId(id);
+  }
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-0 bg-zinc-950">
@@ -42,7 +49,7 @@ export default function MapView() {
           {unavailable}
         </div>
       )}
-      {/* Task 4: PinCard for selectedId */}
+      {selected && <PinCard location={selected} onClose={() => setSelectedId(null)} onSelect={selectFromCard} />}
     </div>
   );
 }

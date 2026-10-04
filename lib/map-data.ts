@@ -57,3 +57,7 @@ export function plannedOn(data: TripData, locationId: string): PlannedRow[] {
       a.item.position - b.item.position,
   );
 }
+
+export function selectedLocation(data: TripData, id: string | null): Location | null {
+  return id ? (data.locations.find((l) => l.id === id) ?? null) : null;
+}
