@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import BottomNav from "./BottomNav";
 import CategoriesView from "./views/CategoriesView";
 import DayDetailView from "./views/DayDetailView";
 import DaysView from "./views/DaysView";
 import LocationDetailView from "./views/LocationDetailView";
 import LocationsView from "./views/LocationsView";
-import MapView from "./views/MapView";
+import MapView, { warmMapOnIdle } from "./views/MapView";
 import StaysView from "./views/StaysView";
 import OfflineBadge from "./OfflineBadge";
 import RegisterSW from "./RegisterSW";
@@ -65,6 +66,9 @@ function View({ route }: { route: Route }) {
 export default function App() {
   const { data, online, loading, error } = useTrip();
   const route = useRoute();
+  useEffect(() => {
+    if (online) warmMapOnIdle();
+  }, [online]);
 
   return (
     <ToastProvider>

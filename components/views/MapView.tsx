@@ -9,11 +9,36 @@ import MapErrorBoundary from "@/components/map/MapErrorBoundary";
 import PinCard from "@/components/map/PinCard";
 import CategoryChips from "@/components/map/CategoryChips";
 
-const MapCanvas = dynamic(() => import("@/components/map/MapCanvas"), {
+// One import() per module, shared with warmMapOnIdle: Turbopack emits a separate chunk copy per
+// call site, so warming through a second import() would cache chunks the Map tab never requests.
+const loadCanvas = () => import("@/components/map/MapCanvas");
+const loadLocate = () => import("@/components/map/LocateButton");
+
+const MapCanvas = dynamic(loadCanvas, {
   ssr: false,
   loading: () => <div className="absolute inset-0 animate-pulse bg-zinc-900" />,
 });
-const LocateButton = dynamic(() => import("@/components/map/LocateButton"), { ssr: false });
+const LocateButton = dynamic(loadLocate, { ssr: false });
+
+let warmed = false;
+/**
+ * Once per page load, when online and idle: fetch the lazy map chunks (+ CSS) and the MapLibre
+ * worker files so the service worker has them, and the Map tab opens offline after a deploy.
+ */
+export function warmMapOnIdle(): void {
+  if (warmed) return;
+  warmed = true;
+  const run = () => {
+    void loadLocate().catch(() => {});
+    loadCanvas()
+      .then((m) => Promise.all(m.MAPLIBRE_WORKER_FILES.map((u) => fetch(u))))
+      .catch(() => {
+        warmed = false; // flaky network: try again next time we're online
+      });
+  };
+  if ("requestIdleCallback" in window) window.requestIdleCallback(run, { timeout: 5000 });
+  else setTimeout(run, 2000);
+}
 
 function MapLoadFailed({ online }: { online: boolean }) {
   return (
