@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSheetHistory } from "./sheet-history";
+import { browserHistoryEnv, createSheetHistory } from "./sheet-history";
 
 // Fake browser: entries (url + state) + index; go() fires popstate asynchronously.
 function setup() {
@@ -199,5 +199,45 @@ describe("sheet history", () => {
     expect(t.cur()).toBe("#/day/b");
     expect(t.urls().slice(0, 2)).toEqual(["#/", "#/day/b"]); // forward sheet entry is dead
     expect(t.sh.canGoBack()).toBe(true);
+  });
+});
+
+// Fake window: a fragment navigation pushes an entry with null state (as browsers do).
+function fakeWindow(initial: Record<string, unknown>) {
+  const entries: { hash: string; state: unknown }[] = [{ hash: "#/", state: initial }];
+  let idx = 0;
+  const win = {
+    history: {
+      get state() { return entries[idx].state; },
+      pushState: (st: unknown) => { entries.splice(idx + 1); entries.push({ hash: entries[idx].hash, state: st }); idx++; },
+      replaceState: (st: unknown) => { entries[idx].state = st; },
+      go: () => {},
+    },
+    location: {
+      get hash() { return entries[idx].hash; },
+      set hash(h: string) { entries.splice(idx + 1); entries.push({ hash: h, state: null }); idx++; },
+      replace: (h: string) => { entries[idx] = { hash: h, state: null }; },
+    },
+    addEventListener: () => {},
+  };
+  return { win: win as unknown as Window, entries };
+}
+
+describe("browser env", () => {
+  const NEXT = { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: "tree" };
+
+  it("navigate keeps Next's history marker on the new entry", () => {
+    const { win, entries } = fakeWindow(NEXT);
+    const sh = createSheetHistory(browserHistoryEnv(() => win));
+    sh.navigate("#/stays");
+    expect(entries.map((e) => e.hash)).toEqual(["#/", "#/stays"]);
+    expect(entries[1].state).toEqual({ ...NEXT, depth: 1 });
+  });
+
+  it("replace navigate keeps Next's history marker", () => {
+    const { win, entries } = fakeWindow({ ...NEXT, depth: 2 });
+    const sh = createSheetHistory(browserHistoryEnv(() => win));
+    sh.navigate("#/day/b", { replace: true });
+    expect(entries).toEqual([{ hash: "#/day/b", state: { ...NEXT, depth: 2 } }]);
   });
 });

@@ -161,17 +161,30 @@ export function createSheetHistory(env: HistoryEnv) {
   return { open: openSheet, navigate, canGoBack };
 }
 
-export const sheetHistory = createSheetHistory({
-  pushState: (state) => history.pushState(state, ""),
-  go: (d) => history.go(d),
-  currentHash: () => window.location.hash,
-  getDepth: () => (history.state as { depth?: number } | null)?.depth ?? 0,
-  setDepth: (depth) => history.replaceState({ depth }, ""),
-  setHash: (h) => {
-    window.location.hash = h;
-  },
-  replaceHash: (h) => {
-    window.location.replace(h);
-  },
-  onPop: (fn) => window.addEventListener("popstate", fn),
-});
+type BrowserWindow = Pick<Window, "history" | "location" | "addEventListener">;
+
+// State writes keep the current entry's other keys. A fragment navigation gives
+// the new entry a null state, dropping Next's app-router marker (__NA); popping
+// back to an entry without it makes Next reload the whole page (sheets vanish).
+export function browserHistoryEnv(win: () => BrowserWindow): HistoryEnv {
+  const carryState = (nav: () => void) => {
+    const prev = win().history.state;
+    nav();
+    win().history.replaceState(prev, "");
+  };
+  return {
+    pushState: (state) => win().history.pushState(state, ""),
+    go: (d) => win().history.go(d),
+    currentHash: () => win().location.hash,
+    getDepth: () => (win().history.state as { depth?: number } | null)?.depth ?? 0,
+    setDepth: (depth) => win().history.replaceState({ ...win().history.state, depth }, ""),
+    setHash: (h) =>
+      carryState(() => {
+        win().location.hash = h;
+      }),
+    replaceHash: (h) => carryState(() => win().location.replace(h)),
+    onPop: (fn) => win().addEventListener("popstate", fn),
+  };
+}
+
+export const sheetHistory = createSheetHistory(browserHistoryEnv(() => window));
