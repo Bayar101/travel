@@ -4,7 +4,10 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useTrip } from "@/lib/store";
-import { categoryChips, filterByCategory, normalizeSelection, selectedLocation, type CategorySelection } from "@/lib/map-data";
+import {
+  EMPTY_FILTER, applyCategoryFilter, categoryChips, cycleChip, filterKey, isEmptyFilter, normalizeFilter,
+  selectedLocation, type CategoryFilter,
+} from "@/lib/map-data";
 import MapErrorBoundary from "@/components/map/MapErrorBoundary";
 import PinCard from "@/components/map/PinCard";
 import CategoryChips from "@/components/map/CategoryChips";
@@ -40,6 +43,16 @@ export function warmMapOnIdle(): void {
   else setTimeout(run, 2000);
 }
 
+const HINT_KEY = "map-filter-hint-seen";
+
+function hintSeen(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 interface Unavailable {
   msg: string;
   retry?: () => void;
@@ -63,22 +76,34 @@ function MapLoadFailed({ online }: { online: boolean }) {
 
 export default function MapView() {
   const { data, online } = useTrip();
-  const [rawSel, setSel] = useState<CategorySelection>("all");
+  const [rawFilter, setFilter] = useState<CategoryFilter>(EMPTY_FILTER);
+  const [hintDone, setHintDone] = useState(hintSeen);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [unavailable, setUnavailable] = useState<Unavailable | null>(null);
   const [crashed, setCrashed] = useState(false);
 
   const chips = useMemo(() => (data ? categoryChips(data) : []), [data]);
-  const sel = data ? normalizeSelection(data, rawSel) : "all";
-  const visible = useMemo(() => (data ? filterByCategory(data.locations, sel) : []), [data, sel]);
+  const filter = useMemo(() => (data ? normalizeFilter(data, rawFilter) : EMPTY_FILTER), [data, rawFilter]);
+  const fKey = filterKey(filter);
+  const visible = useMemo(() => (data ? applyCategoryFilter(data.locations, filter) : []), [data, filter]);
   const selected = data ? selectedLocation(data, selectedId) : null;
   if (data && selectedId && !selected) setSelectedId(null); // deleted by sync: clear stale id
   if (!data) return null;
   function selectFromCard(id: string) {
-    // A place/area outside the current filter would have no pin: show all categories.
-    if (!visible.some((l) => l.id === id)) setSel("all");
+    // A place/area outside the current filter would have no pin: clear the filter.
+    if (!visible.some((l) => l.id === id)) setFilter(EMPTY_FILTER);
     setSelectedId(id);
+  }
+
+  function toggleChip(key: string) {
+    setFilter(cycleChip(filter, key));
+    if (!hintDone) {
+      setHintDone(true);
+      try {
+        localStorage.setItem(HINT_KEY, "1");
+      } catch {}
+    }
   }
 
   // PinCard (a Sheet) renders outside the z-0 map layer: inside it, the bottom nav would cover its footer.
@@ -89,14 +114,21 @@ export default function MapView() {
           <MapCanvas
             locations={visible}
             selectedId={selectedId}
-            fitKey={sel}
+            fitKey={fKey}
             onSelect={setSelectedId}
             onUnavailable={(msg, retry) => setUnavailable(msg ? { msg, retry } : null)}
             onMap={setMap}
           />
         </MapErrorBoundary>
         <div className="pt-safe pointer-events-none absolute inset-x-0 top-0">
-          <CategoryChips chips={chips} value={sel} onChange={setSel} />
+          <CategoryChips
+            chips={chips}
+            filter={filter}
+            empty={isEmptyFilter(filter)}
+            showHint={!hintDone}
+            onToggle={toggleChip}
+            onClear={() => setFilter(EMPTY_FILTER)}
+          />
           {!online && (
             <p className="mx-4 mt-1 w-fit rounded-full bg-white px-3 py-1 text-sm font-medium text-[#b06000] shadow-[0_1px_3px_#0000004d]">
               Map offline — showing saved areas

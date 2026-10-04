@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { TripData, Location } from "./types";
-import { boundsFor, categoryChips, filterByCategory, normalizeSelection, plannedOn, selectedLocation } from "./map-data";
+import {
+  applyCategoryFilter, boundsFor, categoryChips, chipState, cycleChip, filterKey, isEmptyFilter,
+  normalizeFilter, plannedOn, selectedLocation, type CategoryFilter,
+} from "./map-data";
 
 const loc = (id: string, over: Partial<Location> = {}): Location => ({
   id, type: "place", parent_id: null, category_id: null, name: id, description: null,
@@ -38,25 +41,71 @@ describe("categoryChips", () => {
   });
 });
 
-describe("normalizeSelection", () => {
-  it("keeps valid selections", () => {
-    expect(normalizeSelection(data(), "all")).toBe("all");
-    expect(normalizeSelection(data(), "c1")).toBe("c1");
-    expect(normalizeSelection(data(), "none")).toBe("none");
+const ids = (ls: Location[]) => ls.map((l) => l.id);
+const F = (include: string[] = [], exclude: string[] = []): CategoryFilter => ({ include, exclude });
+
+describe("cycleChip", () => {
+  it("cycles off -> include -> exclude -> off", () => {
+    const inc = cycleChip(F(), "c1");
+    expect(inc).toEqual(F(["c1"], []));
+    const exc = cycleChip(inc, "c1");
+    expect(exc).toEqual(F([], ["c1"]));
+    expect(cycleChip(exc, "c1")).toEqual(F());
   });
-  it("falls back to all for deleted category or empty uncategorized", () => {
-    expect(normalizeSelection(data(), "gone")).toBe("all");
-    expect(normalizeSelection(data({ locations: [loc("a", { category_id: "c1" })] }), "none")).toBe("all");
+  it("leaves other chips alone and does not mutate", () => {
+    const f = F(["c1"], ["c2"]);
+    expect(cycleChip(f, "none")).toEqual(F(["c1", "none"], ["c2"]));
+    expect(cycleChip(f, "c1")).toEqual(F([], ["c2", "c1"]));
+    expect(f).toEqual(F(["c1"], ["c2"]));
   });
 });
 
-describe("filterByCategory", () => {
-  const ls = data().locations;
-  it("filters", () => {
-    expect(filterByCategory(ls, "all").map((l) => l.id)).toEqual(["a", "b", "u"]);
-    expect(filterByCategory(ls, "c2").map((l) => l.id)).toEqual(["b"]);
-    expect(filterByCategory(ls, "none").map((l) => l.id)).toEqual(["u"]);
+describe("chipState", () => {
+  it("reports state", () => {
+    const f = F(["c1"], ["c2"]);
+    expect([chipState(f, "c1"), chipState(f, "c2"), chipState(f, "none")]).toEqual(["include", "exclude", "off"]);
   });
+});
+
+describe("isEmptyFilter / filterKey", () => {
+  it("detects empty", () => {
+    expect(isEmptyFilter(F())).toBe(true);
+    expect(isEmptyFilter(F(["a"]))).toBe(false);
+    expect(isEmptyFilter(F([], ["a"]))).toBe(false);
+  });
+  it("is stable regardless of order", () => {
+    expect(filterKey(F(["b", "a"], ["d", "c"]))).toBe(filterKey(F(["a", "b"], ["c", "d"])));
+    expect(filterKey(F(["a"]))).not.toBe(filterKey(F([], ["a"])));
+    expect(filterKey(F())).toBe(filterKey(F()));
+  });
+});
+
+describe("normalizeFilter", () => {
+  it("keeps valid keys", () => {
+    const f = F(["c1", "none"], ["c2"]);
+    expect(normalizeFilter(data(), f)).toBe(f);
+  });
+  it("drops deleted categories and emptied uncategorized", () => {
+    const d = data({ locations: [loc("a", { category_id: "c1" })] });
+    expect(normalizeFilter(d, F(["gone", "none"], ["c2", "x"]))).toEqual(F([], ["c2"]));
+  });
+});
+
+describe("applyCategoryFilter", () => {
+  const ls = data().locations; // a:c1, b:c2, u:none
+  it("empty shows all", () => expect(ids(applyCategoryFilter(ls, F()))).toEqual(["a", "b", "u"]));
+  it("include only", () => expect(ids(applyCategoryFilter(ls, F(["c2"])))).toEqual(["b"]));
+  it("multiple includes", () => expect(ids(applyCategoryFilter(ls, F(["c1", "c2"])))).toEqual(["a", "b"]));
+  it("uncategorized include", () => expect(ids(applyCategoryFilter(ls, F(["none"])))).toEqual(["u"]));
+  it("exclude only", () => expect(ids(applyCategoryFilter(ls, F([], ["c1"])))).toEqual(["b", "u"]));
+  it("multiple excludes incl. uncategorized", () =>
+    expect(ids(applyCategoryFilter(ls, F([], ["c1", "none"])))).toEqual(["b"]));
+  it("mixed: include then exclude", () => {
+    expect(ids(applyCategoryFilter(ls, F(["c1", "none"], ["none"])))).toEqual(["a"]);
+    expect(ids(applyCategoryFilter(ls, F(["c1"], ["c2"])))).toEqual(["a"]);
+  });
+  it("excluding everything yields empty", () =>
+    expect(applyCategoryFilter(ls, F([], ["c1", "c2", "none"]))).toEqual([]));
 });
 
 describe("boundsFor", () => {

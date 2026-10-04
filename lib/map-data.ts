@@ -1,8 +1,10 @@
 import type { Day, DayItem, Location, TripData } from "./types";
 import { formatDay } from "./stay-dates";
 
-export type CategorySelection = "all" | "none" | string;
-export interface Chip { key: CategorySelection; label: string }
+/** Keys are a category id, or "none" for uncategorized locations. */
+export interface CategoryFilter { include: string[]; exclude: string[] }
+export type ChipState = "off" | "include" | "exclude";
+export interface Chip { key: string; label: string }
 export type Bounds = [[number, number], [number, number]];
 export interface PlannedRow { day: Day; item: DayItem; label: string }
 
@@ -16,14 +18,47 @@ export function categoryChips(data: TripData): Chip[] {
   return chips;
 }
 
-export function normalizeSelection(data: TripData, sel: CategorySelection): CategorySelection {
-  return categoryChips(data).some((c) => c.key === sel) ? sel : "all";
+export const EMPTY_FILTER: CategoryFilter = { include: [], exclude: [] };
+
+export function isEmptyFilter(f: CategoryFilter): boolean {
+  return !f.include.length && !f.exclude.length;
 }
 
-export function filterByCategory(locations: Location[], sel: CategorySelection): Location[] {
-  if (sel === "all") return locations;
-  if (sel === "none") return locations.filter((l) => l.category_id === null);
-  return locations.filter((l) => l.category_id === sel);
+export function chipState(f: CategoryFilter, key: string): ChipState {
+  return f.include.includes(key) ? "include" : f.exclude.includes(key) ? "exclude" : "off";
+}
+
+/** off -> include -> exclude -> off */
+export function cycleChip(f: CategoryFilter, key: string): CategoryFilter {
+  const rest = (a: string[]) => a.filter((k) => k !== key);
+  switch (chipState(f, key)) {
+    case "off": return { include: [...f.include, key], exclude: f.exclude };
+    case "include": return { include: rest(f.include), exclude: [...f.exclude, key] };
+    default: return { include: f.include, exclude: rest(f.exclude) };
+  }
+}
+
+/** Drops keys whose chip no longer exists (deleted category, emptied Uncategorized). */
+export function normalizeFilter(data: TripData, f: CategoryFilter): CategoryFilter {
+  const valid = new Set(categoryChips(data).map((c) => c.key));
+  const inc = f.include.filter((k) => valid.has(k));
+  const exc = f.exclude.filter((k) => valid.has(k));
+  return inc.length === f.include.length && exc.length === f.exclude.length ? f : { include: inc, exclude: exc };
+}
+
+/** Includes (if any) narrow first, then excludes remove. */
+export function applyCategoryFilter(locations: Location[], f: CategoryFilter): Location[] {
+  if (isEmptyFilter(f)) return locations;
+  const inc = new Set(f.include), exc = new Set(f.exclude);
+  return locations.filter((l) => {
+    const k = l.category_id ?? "none";
+    return (!inc.size || inc.has(k)) && !exc.has(k);
+  });
+}
+
+/** Order-independent, stable string for the map's refit key. */
+export function filterKey(f: CategoryFilter): string {
+  return `+${[...f.include].sort().join(",")}|-${[...f.exclude].sort().join(",")}`;
 }
 
 export function boundsFor(locations: Location[]): Bounds | null {
