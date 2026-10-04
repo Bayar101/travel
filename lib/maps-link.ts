@@ -52,9 +52,13 @@ export function placeNameFromUrl(text: string): string | null {
   return name && !COORD_PAIR.test(name) ? name : null;
 }
 
-export interface ResolvedLink {
+export interface LatLng {
   lat: number;
   lng: number;
+}
+
+export interface ResolvedLink {
+  ll: LatLng | null; // null: the link names a place but carries no coordinates (newer app links)
   name: string | null;
 }
 
@@ -65,7 +69,7 @@ type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 /**
  * Follow redirects by hand (each hop's host re-checked), never reading bodies, then parse the
- * final URL. Throws on a disallowed host / too many hops / network error; null if no coordinates.
+ * final URL. Throws on a disallowed host / too many hops / network error; null on an error status.
  */
 export async function resolveMapsLink(start: string, fetchImpl: Fetch = fetch): Promise<ResolvedLink | null> {
   const signal = AbortSignal.timeout(TIMEOUT_MS);
@@ -85,6 +89,50 @@ export async function resolveMapsLink(start: string, fetchImpl: Fetch = fetch): 
   // Consent interstitials carry the real target in ?continue=.
   const cont = new URL(url).searchParams.get("continue");
   const final = cont && isAllowedMapsUrl(cont) ? cont : url;
-  const ll = parseLatLng(final);
-  return ll ? { ...ll, name: placeNameFromUrl(final) } : null;
+  return { ll: parseLatLng(final), name: placeNameFromUrl(final) };
+}
+
+// Fixed host: the user only ever controls the q= value.
+export const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+const USER_AGENT = "japan-trip-planner/1.0 (personal)";
+
+/** First Nominatim hit in Japan for a place name; null if none / unusable. Throws on network error. */
+export async function geocodeName(name: string, fetchImpl: Fetch = fetch): Promise<LatLng | null> {
+  const u = new URL(NOMINATIM_URL);
+  u.search = new URLSearchParams({ format: "jsonv2", limit: "1", countrycodes: "jp", q: name }).toString();
+  const res = await fetchImpl(u.toString(), {
+    method: "GET",
+    redirect: "error",
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+    headers: { "user-agent": USER_AGENT, accept: "application/json" },
+  });
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => {});
+    return null;
+  }
+  const body: unknown = await res.json().catch(() => null);
+  const hit = Array.isArray(body) ? (body[0] as { lat?: unknown; lon?: unknown } | undefined) : undefined;
+  if (!hit) return null;
+  const lat = Number(hit.lat);
+  const lng = Number(hit.lon);
+  if (typeof hit.lat !== "string" || typeof hit.lon !== "string" || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+export type LookupResult =
+  | { ok: true; lat: number; lng: number; name: string | null; approximate: boolean }
+  | { ok: false; name: string | null };
+
+/**
+ * Link → coordinates. Exact when the link has them; else geocode its place name (approximate).
+ * Throws only on link-following failures (disallowed host, hops, network); geocoder errors → not found.
+ */
+export async function lookupMapsLink(start: string, fetchImpl: Fetch = fetch): Promise<LookupResult> {
+  const r = await resolveMapsLink(start, fetchImpl);
+  if (!r) return { ok: false, name: null };
+  if (r.ll) return { ok: true, ...r.ll, name: r.name, approximate: false };
+  if (!r.name) return { ok: false, name: null };
+  const g = await geocodeName(r.name, fetchImpl).catch(() => null);
+  return g ? { ok: true, ...g, name: r.name, approximate: true } : { ok: false, name: r.name };
 }

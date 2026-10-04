@@ -95,8 +95,32 @@ export async function logout(): Promise<void> {
 }
 
 
-/** Expand a Google Maps share link server-side (read-only: no write bookkeeping). */
-export async function resolveMapsLink(url: string): Promise<{ lat: number; lng: number; name: string | null }> {
+export type MapsLinkLookup =
+  | { ok: true; lat: number; lng: number; name: string | null; approximate: boolean }
+  | { ok: false; error: string; name: string | null };
+
+/** Expand a Google Maps share link server-side (read-only: no write bookkeeping). 422 still carries `name`. */
+export async function resolveMapsLink(url: string): Promise<MapsLinkLookup> {
   if (!isOnline()) throw new Error(OFFLINE);
-  return send("/api/resolve-maps-link", "POST", { url });
+  let res: Response;
+  try {
+    res = await fetch("/api/resolve-maps-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+  } catch {
+    throw new Error(OFFLINE);
+  }
+  if (res.status === 401) {
+    window.location.replace("/login");
+    return new Promise<MapsLinkLookup>(() => {});
+  }
+  const j = (await res.json().catch(() => null)) as
+    | { lat?: number; lng?: number; name?: string | null; approximate?: boolean; error?: string }
+    | null;
+  if (res.ok && typeof j?.lat === "number" && typeof j.lng === "number") {
+    return { ok: true, lat: j.lat, lng: j.lng, name: j.name ?? null, approximate: j.approximate === true };
+  }
+  return { ok: false, error: j?.error ?? "Couldn't read that link", name: typeof j?.name === "string" ? j.name : null };
 }

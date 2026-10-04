@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  cityList, coordsSummary, defaultEmoji, locationPayload, QUICK_EMOJI, validateLocationForm, type LocationFormValues,
+  clearAutoCoords, cityList, coordsSummary, defaultEmoji, locationPayload, shouldFillName, QUICK_EMOJI, validateLocationForm, type LocationFormValues,
 } from "./location-form";
 import type { TripData } from "./types";
 
@@ -80,5 +80,21 @@ describe("coordsSummary", () => {
     expect(coordsSummary({ lat: "", lng: "139" })).toBeNull();
     expect(coordsSummary({ lat: "abc", lng: "139" })).toBeNull();
     expect(coordsSummary({ lat: "95", lng: "139" })).toBeNull();
+  });
+});
+
+describe("link autofill helpers", () => {
+  const v = { lat: "35.1", lng: "139.2" };
+  it("clearAutoCoords clears only coordinates a link filled", () => {
+    expect(clearAutoCoords(v, { lat: "35.1", lng: "139.2" })).toEqual({ lat: "", lng: "" });
+    expect(clearAutoCoords(v, null)).toEqual(v);
+    expect(clearAutoCoords({ lat: "35.1", lng: "139.3" }, { lat: "35.1", lng: "139.2" })).toEqual({ lat: "35.1", lng: "139.3" });
+  });
+  it("shouldFillName: empty or still the previous auto-filled name", () => {
+    expect(shouldFillName("", null, "A")).toBe(true);
+    expect(shouldFillName("  ", null, "A")).toBe(true);
+    expect(shouldFillName("A", "A", "B")).toBe(true);
+    expect(shouldFillName("Mine", "A", "B")).toBe(false);
+    expect(shouldFillName("", null, null)).toBe(false);
   });
 });

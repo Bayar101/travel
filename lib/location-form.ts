@@ -84,3 +84,16 @@ export function coordsSummary(v: Pick<LocationFormValues, "lat" | "lng">): strin
   if (lat === null || lng === null) return null;
   return `${Number(lat.toFixed(5))}, ${Number(lng.toFixed(5))}`;
 }
+
+type Coords = Pick<LocationFormValues, "lat" | "lng">;
+
+/** A failed paste drops coordinates only if the previous paste filled them (manual entries stay). */
+export function clearAutoCoords<T extends Coords>(v: T, auto: Coords | null): T {
+  return auto && v.lat === auto.lat && v.lng === auto.lng ? { ...v, lat: "", lng: "" } : v;
+}
+
+/** Fill Name from a link when it's empty or still the name an earlier link filled; never over typed text. */
+export function shouldFillName(current: string, lastAuto: string | null, name: string | null): boolean {
+  const cur = current.trim();
+  return !!name && (!cur || cur === lastAuto);
+}

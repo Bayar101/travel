@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { extractShortLink, isAllowedMapsUrl, isMapsHost, looksLikeShortLink, placeNameFromUrl, resolveMapsLink } from "./maps-link";
+import { extractShortLink, geocodeName, lookupMapsLink, NOMINATIM_URL, isAllowedMapsUrl, isMapsHost, looksLikeShortLink, placeNameFromUrl, resolveMapsLink } from "./maps-link";
 
 describe("isMapsHost", () => {
   it("allows the listed hosts and google.<tld> subdomains", () => {
@@ -67,13 +67,13 @@ describe("resolveMapsLink", () => {
   it("follows redirects and reads coordinates + name", async () => {
     const f = vi.fn().mockResolvedValueOnce(redirect(FINAL)).mockResolvedValueOnce(new Response("", { status: 200 }));
     await expect(resolveMapsLink("https://maps.app.goo.gl/5a2iNmeLGDpY9gc36", f)).resolves.toEqual({
-      lat: -6.6398231, lng: 106.774047, name: "Toko Fortune",
+      ll: { lat: -6.6398231, lng: 106.774047 }, name: "Toko Fortune",
     });
     expect(f).toHaveBeenNthCalledWith(1, "https://maps.app.goo.gl/5a2iNmeLGDpY9gc36", expect.objectContaining({ redirect: "manual" }));
   });
   it("resolves relative Location headers against the current hop", async () => {
     const f = vi.fn().mockResolvedValueOnce(redirect("/maps/place/X/@1,2,3z")).mockResolvedValueOnce(new Response("", { status: 200 }));
-    await expect(resolveMapsLink("https://www.google.com/maps?x", f)).resolves.toEqual({ lat: 1, lng: 2, name: "X" });
+    await expect(resolveMapsLink("https://www.google.com/maps?x", f)).resolves.toEqual({ ll: { lat: 1, lng: 2 }, name: "X" });
     expect(f.mock.calls[1][0]).toBe("https://www.google.com/maps/place/X/@1,2,3z");
   });
   it("rejects a redirect to a disallowed host without fetching it", async () => {
@@ -91,9 +91,9 @@ describe("resolveMapsLink", () => {
     await expect(resolveMapsLink("https://maps.app.goo.gl/loop", f)).rejects.toThrow("redirects");
     expect(f).toHaveBeenCalledTimes(6);
   });
-  it("null when the final url has no coordinates", async () => {
+  it("name only when the final url has no coordinates", async () => {
     const f = vi.fn().mockResolvedValueOnce(redirect("https://www.google.com/maps/place/X/data=!4m2")).mockResolvedValueOnce(new Response("", { status: 200 }));
-    await expect(resolveMapsLink("https://maps.app.goo.gl/a", f)).resolves.toBeNull();
+    await expect(resolveMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ll: null, name: "X" });
   });
   it("null on an error status", async () => {
     const f = vi.fn().mockResolvedValueOnce(new Response("", { status: 404 }));
@@ -115,5 +115,73 @@ describe("extractShortLink", () => {
     expect(extractShortLink("maps.app.goo.gl/abc?g_st=ic")).toBe("https://maps.app.goo.gl/abc?g_st=ic");
     expect(extractShortLink("http://goo.gl/maps/xyz")).toBe("https://goo.gl/maps/xyz");
     expect(extractShortLink("https://www.google.com/maps")).toBeNull();
+  });
+});
+
+const jsonRes = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+describe("geocodeName", () => {
+  it("queries Nominatim (fixed host, jp, UA) and parses the first hit", async () => {
+    const f = vi.fn().mockResolvedValueOnce(jsonRes([{ lat: "35.7148", lon: "139.7967", display_name: "浅草寺" }]));
+    await expect(geocodeName("Senso-ji", f)).resolves.toEqual({ lat: 35.7148, lng: 139.7967 });
+    const [url, init] = f.mock.calls[0];
+    const u = new URL(url);
+    expect(`${u.origin}${u.pathname}`).toBe(NOMINATIM_URL);
+    expect(Object.fromEntries(u.searchParams)).toEqual({ format: "jsonv2", limit: "1", countrycodes: "jp", q: "Senso-ji" });
+    expect(new Headers(init.headers).get("user-agent")).toMatch(/japan-trip-planner/);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+  it("encodes the name as a query value only (no host injection)", async () => {
+    const f = vi.fn().mockResolvedValueOnce(jsonRes([]));
+    await geocodeName("x&q=y@evil.com/#", f);
+    const u = new URL(f.mock.calls[0][0]);
+    expect(u.host).toBe("nominatim.openstreetmap.org");
+    expect(u.searchParams.get("q")).toBe("x&q=y@evil.com/#");
+  });
+  it("null on no hits, bad numbers or error status", async () => {
+    await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes([])))).resolves.toBeNull();
+    await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes([{ lat: "x", lon: "1" }])))).resolves.toBeNull();
+    await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes([{ lat: "95", lon: "1" }])))).resolves.toBeNull();
+    await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes({ error: "x" }, 500)))).resolves.toBeNull();
+    await expect(geocodeName("a", vi.fn().mockResolvedValueOnce(jsonRes({})))).resolves.toBeNull();
+  });
+});
+
+describe("lookupMapsLink", () => {
+  const ok = () => new Response("", { status: 200 });
+  it("exact coordinates from the link", async () => {
+    const f = vi.fn().mockResolvedValueOnce(redirect(FINAL)).mockResolvedValueOnce(ok());
+    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({
+      ok: true, lat: -6.6398231, lng: 106.774047, name: "Toko Fortune", approximate: false,
+    });
+  });
+  it("geocodes the place name when the link has no coordinates", async () => {
+    const f = vi.fn()
+      .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Senso-ji/data=!4m2!3m1!1s0x1?entry=gps"))
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(jsonRes([{ lat: "35.7148", lon: "139.7967" }]));
+    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({
+      ok: true, lat: 35.7148, lng: 139.7967, name: "Senso-ji", approximate: true,
+    });
+    expect(new URL(f.mock.calls[2][0]).host).toBe("nominatim.openstreetmap.org");
+  });
+  it("name only when geocoding finds nothing", async () => {
+    const f = vi.fn()
+      .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Nowhere/data=!4m2"))
+      .mockResolvedValueOnce(ok())
+      .mockResolvedValueOnce(jsonRes([]));
+    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: "Nowhere" });
+  });
+  it("geocoder failure still returns the name", async () => {
+    const f = vi.fn()
+      .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Nowhere/data=!4m2"))
+      .mockResolvedValueOnce(ok())
+      .mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: "Nowhere" });
+  });
+  it("no name, no coordinates", async () => {
+    const f = vi.fn().mockResolvedValueOnce(redirect("https://www.google.com/maps/data=!4m2")).mockResolvedValueOnce(ok());
+    await expect(lookupMapsLink("https://maps.app.goo.gl/a", f)).resolves.toEqual({ ok: false, name: null });
+    expect(f).toHaveBeenCalledTimes(2);
   });
 });

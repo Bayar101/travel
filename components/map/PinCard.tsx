@@ -6,6 +6,7 @@ import { navigate } from "@/lib/router";
 import { categoryById, locationById, placesInArea } from "@/lib/selectors";
 import type { Location } from "@/lib/types";
 import PlannedOnList from "@/components/PlannedOnList";
+import Button from "@/components/ui/Button";
 import Sheet from "@/components/ui/Sheet";
 import DirectionsButton from "@/components/ui/DirectionsButton";
 import { ChevronRightIcon } from "@/components/ui/icons";
@@ -43,14 +44,10 @@ export default function PinCard({
       title={l.name}
       footer={
         <div className="flex gap-2">
-          <DirectionsButton lat={l.lat} lng={l.lng} full className="flex-1" />
-          <button
-            type="button"
-            className="min-h-11 flex-1 rounded-xl bg-red-500 px-4 text-base font-medium text-white active:bg-red-600"
-            onClick={() => navigate(`/location/${encodeURIComponent(l.id)}`)}
-          >
+          <DirectionsButton lat={l.lat} lng={l.lng} full primary className="flex-1" />
+          <Button variant="secondary" className="flex-1" onClick={() => navigate(`/location/${encodeURIComponent(l.id)}`)}>
             Open details
-          </button>
+          </Button>
         </div>
       }
     >

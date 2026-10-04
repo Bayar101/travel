@@ -1,11 +1,13 @@
 import { handler, HttpError, json, readJson } from "@/lib/api-handler";
-import { isAllowedMapsUrl, resolveMapsLink } from "@/lib/maps-link";
+import { isAllowedMapsUrl, lookupMapsLink } from "@/lib/maps-link";
 
 export const dynamic = "force-dynamic";
 
 const UNREADABLE = { error: "Couldn't read that link" };
+const NO_COORDS = "Couldn't find coordinates — open Coordinates and enter them, or paste a link with a pin";
 
-// Expands a Google Maps share link (maps.app.goo.gl) to coordinates + place name.
+// Expands a Google Maps share link (maps.app.goo.gl) to coordinates + place name. Links without
+// coordinates (newer app shares) fall back to geocoding the name via Nominatim (approximate: true).
 // Logs only the host: share URLs carry tracking/query data.
 export const POST = handler("api.resolve_maps_link", async ({ req, request_id, log }) => {
   const body = await readJson(req);
@@ -18,13 +20,14 @@ export const POST = handler("api.resolve_maps_link", async ({ req, request_id, l
   }
   const host = new URL(trimmed).hostname;
   try {
-    const r = await resolveMapsLink(trimmed);
-    if (!r) {
-      log.info("maps_link_unresolved", { request_id, host, reason: "no_coordinates" });
-      return json(UNREADABLE, 422);
+    const r = await lookupMapsLink(trimmed);
+    if (!r.ok) {
+      log.info("maps_link_unresolved", { request_id, host, reason: r.name ? "geocode_no_match" : "no_coordinates" });
+      return json(r.name ? { error: NO_COORDS, name: r.name } : UNREADABLE, 422);
     }
-    log.info("maps_link_resolved", { request_id, host, has_name: r.name !== null });
-    return json(r);
+    log.info("maps_link_resolved", { request_id, host, has_name: r.name !== null, approximate: r.approximate });
+    const { lat, lng, name, approximate } = r;
+    return json(approximate ? { lat, lng, name, approximate } : { lat, lng, name });
   } catch (err) {
     // Fixed reason codes only: error messages may embed the URL.
     const msg = err instanceof Error ? err.message : "";
