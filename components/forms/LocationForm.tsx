@@ -10,7 +10,7 @@ import { useToast } from "@/components/Toast";
 import CategoryForm from "./CategoryForm";
 import { create, resolveMapsLink, update } from "@/lib/api-client";
 import {
-  clearAutoCoords, cityList, coordsSummary, shouldFillName, defaultEmoji, DEFAULT_EMOJI, QUICK_EMOJI, locationPayload, locationToForm, validateLocationForm,
+  clearAutoCoords, clearAutoName, cityList, coordsSummary, shouldFillName, defaultEmoji, DEFAULT_EMOJI, QUICK_EMOJI, locationPayload, locationToForm, validateLocationForm,
   type LocationFormErrors, type LocationFormValues,
 } from "@/lib/location-form";
 import { categoryById, placesInArea } from "@/lib/selectors";
@@ -135,6 +135,15 @@ function Body({
     setCoordsOpen(true);
   }
 
+  // Drop name/coords the previous link filled (manual edits stay).
+  function clearAutoFill() {
+    const coords = autoCoords.current;
+    const name = autoName.current;
+    autoCoords.current = null;
+    autoName.current = null;
+    setV((p) => clearAutoName(clearAutoCoords(p, coords), name));
+  }
+
   function onMapsInput(s: string) {
     setMapsInput(s);
     clearTimeout(resolveTimer.current);
@@ -148,6 +157,7 @@ function Body({
     const short = extractShortLink(s) ?? (full && isAllowedMapsUrl(full) && placeNameFromUrl(full) ? full : null);
     if (!short) return failLink("bad");
     if (!online) return failLink("short-offline");
+    clearAutoFill(); // a new link: don't keep (or save) the previous link's place
     setMapsState("resolving");
     resolveTimer.current = setTimeout(async () => {
       try {
@@ -162,7 +172,7 @@ function Body({
   }
 
   async function save() {
-    if (busy) return;
+    if (busy || mapsState === "resolving") return;
     const errs = validateLocationForm(v);
     setErrors(errs);
     if (errs.lat || errs.lng) setCoordsOpen(true);
@@ -195,7 +205,7 @@ function Body({
         footer={
           <>
             <FormError error={error} />
-            <Button type="submit" form="location-form" className="w-full" disabled={!online} loading={busy}>
+            <Button type="submit" form="location-form" className="w-full" disabled={!online || mapsState === "resolving"} loading={busy}>
               Save
             </Button>
           </>

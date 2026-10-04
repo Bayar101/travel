@@ -92,6 +92,11 @@ export function clearAutoCoords<T extends Coords>(v: T, auto: Coords | null): T 
   return auto && v.lat === auto.lat && v.lng === auto.lng ? { ...v, lat: "", lng: "" } : v;
 }
 
+/** Clear Name only while it is still exactly what an earlier link filled. */
+export function clearAutoName<T extends { name: string }>(v: T, auto: string | null): T {
+  return auto !== null && v.name === auto ? { ...v, name: "" } : v;
+}
+
 /** Fill Name from a link when it's empty or still the name an earlier link filled; never over typed text. */
 export function shouldFillName(current: string, lastAuto: string | null, name: string | null): boolean {
   const cur = current.trim();

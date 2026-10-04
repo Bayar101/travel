@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  clearAutoCoords, cityList, coordsSummary, defaultEmoji, locationPayload, shouldFillName, QUICK_EMOJI, validateLocationForm, type LocationFormValues,
+  clearAutoCoords, clearAutoName, cityList, coordsSummary, defaultEmoji, locationPayload, shouldFillName, QUICK_EMOJI, validateLocationForm, type LocationFormValues,
 } from "./location-form";
 import type { TripData } from "./types";
 
@@ -89,6 +89,12 @@ describe("link autofill helpers", () => {
     expect(clearAutoCoords(v, { lat: "35.1", lng: "139.2" })).toEqual({ lat: "", lng: "" });
     expect(clearAutoCoords(v, null)).toEqual(v);
     expect(clearAutoCoords({ lat: "35.1", lng: "139.3" }, { lat: "35.1", lng: "139.2" })).toEqual({ lat: "35.1", lng: "139.3" });
+  });
+  it("clearAutoName clears only a name a link filled (typed edits stay)", () => {
+    expect(clearAutoName({ name: "Senso-ji" }, "Senso-ji")).toEqual({ name: "" });
+    expect(clearAutoName({ name: "Senso-ji temple" }, "Senso-ji")).toEqual({ name: "Senso-ji temple" });
+    expect(clearAutoName({ name: "Mine" }, null)).toEqual({ name: "Mine" });
+    expect(clearAutoName({ name: "" }, null)).toEqual({ name: "" });
   });
   it("shouldFillName: empty or still the previous auto-filled name", () => {
     expect(shouldFillName("", null, "A")).toBe(true);
