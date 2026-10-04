@@ -175,3 +175,5 @@ export const LocateIcon = make(
     <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" />
   </>,
 );
+
+export const CheckIcon = make("Check", <path d="m5 12.5 4.5 4.5L19 7.5" />);

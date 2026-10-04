@@ -1,37 +1,62 @@
 "use client";
 
 import DirectionsButton from "@/components/ui/DirectionsButton";
-import { CARD } from "@/components/ui/styles";
+import { CARD, EMOJI_TILE } from "@/components/ui/styles";
+import { locationSubtitle } from "@/lib/locations-list";
 import { navigate } from "@/lib/router";
-import { categoryById, locationById } from "@/lib/selectors";
 import type { Location, TripData } from "@/lib/types";
 
-export function TypeChip({ type }: { type: Location["type"] }) {
+/** "Area" marker; places get no chip (they're the default). */
+export function AreaChip() {
   return (
-    <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-sm text-zinc-400">
-      {type === "area" ? "Area" : "Place"}
+    <span className="shrink-0 rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-red-300">
+      Area
     </span>
   );
 }
 
-export default function LocationRow({ location: l, data }: { location: Location; data: TripData }) {
-  const area = l.type === "place" ? locationById(data, l.parent_id) : undefined;
-  const cat = categoryById(data, l.category_id);
-  const sub = [l.city, cat?.name].filter(Boolean).join(" · ");
+/** Row content shared by the Locations list and the LocationPicker: emoji tile, name, meta, Area chip. */
+export function LocationRowBody({
+  location: l,
+  data,
+  withArea = true,
+}: {
+  location: Location;
+  data: TripData;
+  withArea?: boolean;
+}) {
+  const sub = locationSubtitle(data, l, { withArea });
   return (
-    <li className={`flex items-center gap-2 pr-2 ${CARD}`}>
+    <>
+      <span aria-hidden="true" className={EMOJI_TILE}>{l.emoji}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 truncate text-base font-medium text-zinc-100">{l.name}</span>
+          {l.type === "area" && <AreaChip />}
+        </span>
+        {sub && <span className="block truncate text-sm text-zinc-400">{sub}</span>}
+      </span>
+    </>
+  );
+}
+
+export default function LocationRow({
+  location: l,
+  data,
+  withArea,
+}: {
+  location: Location;
+  data: TripData;
+  withArea?: boolean;
+}) {
+  return (
+    <li className={`flex items-center gap-1 pr-2 ${CARD}`}>
       <button
         type="button"
         onClick={() => navigate(`/location/${encodeURIComponent(l.id)}`)}
-        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl py-2 pl-3 text-left active:bg-zinc-800"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-2xl py-2.5 pl-2.5 pr-1 text-left transition-colors active:bg-zinc-800"
       >
-        <span aria-hidden="true" className="text-2xl">{l.emoji}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-base text-zinc-100">{l.name}</span>
-          <span className="block truncate text-sm text-zinc-400">{sub}</span>
-          {area && <span className="block truncate text-sm text-zinc-400">in {area.name}</span>}
-        </span>
-        <TypeChip type={l.type} />
+        <LocationRowBody location={l} data={data} withArea={withArea} />
       </button>
       <DirectionsButton lat={l.lat} lng={l.lng} />
     </li>
