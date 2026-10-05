@@ -1,5 +1,18 @@
-export function mapsUrl(lat: number, lng: number): string {
+// With a cid Google Maps opens the named place; otherwise a bare coordinate pin.
+export function mapsUrl(lat: number, lng: number, cid?: string | null): string {
+  if (cid) return `https://www.google.com/maps?cid=${cid}`;
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+}
+
+/**
+ * Google's place cid (decimal string; exceeds Number precision) from a full Maps URL: the second
+ * half of the "!1s0x…:0x…" feature id, or a ?cid= param. Null for links without a place id.
+ */
+export function placeCid(input: string): string | null {
+  const s = input.replace(/%3A/gi, ":");
+  const fid = s.match(/!1s0x[0-9a-f]+:0x([0-9a-f]{1,16})(?![0-9a-f])/i);
+  const cid = fid ? BigInt(`0x${fid[1]}`).toString() : s.match(/[?&]cid=(\d{1,20})(?!\d)/)?.[1];
+  return cid && cid !== "0" ? cid : null;
 }
 
 const NUM = "[-+]?\\d+(?:\\.\\d+)?";

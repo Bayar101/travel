@@ -82,7 +82,7 @@ export default function LocationDetailView({ id }: { id: string }) {
           )}
           {l.description && <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-zinc-200">{l.description}</p>}
           <div className="flex gap-2">
-            <DirectionsButton lat={l.lat} lng={l.lng} name={l.name} full primary className="flex-1" />
+            <DirectionsButton lat={l.lat} lng={l.lng} cid={l.google_cid} name={l.name} full primary className="flex-1" />
             <Button variant="secondary" className="px-5" disabled={!online} onClick={() => setEditing(true)}>
               <PencilIcon size={18} />
               Edit

@@ -1,6 +1,6 @@
 // Google Maps share links: host allowlist (SSRF guard), place-name extraction and the
 // redirect follower used by /api/resolve-maps-link. No server-only imports so it stays testable.
-import { parseLatLng } from "./maps";
+import { parseLatLng, placeCid } from "./maps";
 
 const EXACT_HOSTS = new Set(["maps.app.goo.gl", "goo.gl"]);
 // google.com, www.google.co.jp, maps.google.de, www.google.com.au … (one optional subdomain label)
@@ -55,6 +55,7 @@ export interface LatLng {
 export interface ResolvedLink {
   ll: LatLng | null; // null: the link names a place but carries no coordinates (newer app links)
   name: string | null;
+  cid: string | null; // Google place id when the final url carries one
 }
 
 const MAX_HOPS = 5;
@@ -84,7 +85,7 @@ export async function resolveMapsLink(start: string, fetchImpl: Fetch = fetch): 
   // Consent interstitials carry the real target in ?continue=.
   const cont = new URL(url).searchParams.get("continue");
   const final = cont && isAllowedMapsUrl(cont) ? cont : url;
-  return { ll: parseLatLng(final), name: placeNameFromUrl(final) };
+  return { ll: parseLatLng(final), name: placeNameFromUrl(final), cid: placeCid(final) };
 }
 
 // Fixed host: the user only ever controls the q= value.
@@ -196,7 +197,7 @@ export function createGeocoder(opts: {
 const sharedGeocoder = createGeocoder();
 
 export type LookupResult =
-  | { ok: true; lat: number; lng: number; name: string | null; approximate: boolean }
+  | { ok: true; lat: number; lng: number; name: string | null; cid: string | null; approximate: boolean }
   | { ok: false; name: string | null };
 
 /**
@@ -210,8 +211,8 @@ export async function lookupMapsLink(
 ): Promise<LookupResult> {
   const r = await resolveMapsLink(start, fetchImpl);
   if (!r) return { ok: false, name: null };
-  if (r.ll) return { ok: true, ...r.ll, name: r.name, approximate: false };
+  if (r.ll) return { ok: true, ...r.ll, name: r.name, cid: r.cid, approximate: false };
   if (!r.name) return { ok: false, name: null };
   const g = await geocode(r.name, fetchImpl).catch(() => null);
-  return g ? { ok: true, ...g, name: r.name, approximate: true } : { ok: false, name: r.name };
+  return g ? { ok: true, ...g, name: r.name, cid: r.cid, approximate: true } : { ok: false, name: r.name };
 }

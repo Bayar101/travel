@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  clearAutoCoords, clearAutoName, cityList, coordsSummary, defaultEmoji, locationPayload, shouldFillName, QUICK_EMOJI, validateLocationForm, type LocationFormValues,
+  clearAutoCid, clearAutoCoords, clearAutoName, cityList, coordsSummary, defaultEmoji, locationPayload, shouldFillName, QUICK_EMOJI, validateLocationForm, type LocationFormValues,
 } from "./location-form";
 import type { TripData } from "./types";
 
 const base: LocationFormValues = {
   type: "place", parent_id: "a1", name: " Ramen ", description: " ", category_id: "",
-  emoji: "🍜", city: " Tokyo ", lat: "35.6", lng: "139.7",
+  emoji: "🍜", city: " Tokyo ", lat: "35.6", lng: "139.7", google_cid: "",
 };
 
 describe("validateLocationForm", () => {
@@ -42,8 +42,11 @@ describe("locationPayload", () => {
   it("trims, nulls empties, numbers coords", () => {
     expect(locationPayload(base)).toEqual({
       type: "place", parent_id: "a1", category_id: null, name: "Ramen", description: null,
-      emoji: "🍜", city: "Tokyo", lat: 35.6, lng: 139.7,
+      emoji: "🍜", city: "Tokyo", lat: 35.6, lng: 139.7, google_cid: null,
     });
+  });
+  it("keeps a link-filled cid", () => {
+    expect(locationPayload({ ...base, google_cid: "255" }).google_cid).toBe("255");
   });
   it("area never has parent", () => {
     expect(locationPayload({ ...base, type: "area" }).parent_id).toBeNull();
@@ -89,6 +92,10 @@ describe("link autofill helpers", () => {
     expect(clearAutoCoords(v, { lat: "35.1", lng: "139.2" })).toEqual({ lat: "", lng: "" });
     expect(clearAutoCoords(v, null)).toEqual(v);
     expect(clearAutoCoords({ lat: "35.1", lng: "139.3" }, { lat: "35.1", lng: "139.2" })).toEqual({ lat: "35.1", lng: "139.3" });
+  });
+  it("clearAutoCid clears only the cid the last link filled", () => {
+    expect(clearAutoCid({ google_cid: "255" }, "255")).toEqual({ google_cid: "" });
+    expect(clearAutoCid({ google_cid: "255" }, null)).toEqual({ google_cid: "255" });
   });
   it("clearAutoName clears only a name a link filled (typed edits stay)", () => {
     expect(clearAutoName({ name: "Senso-ji" }, "Senso-ji")).toEqual({ name: "" });

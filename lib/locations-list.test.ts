@@ -6,7 +6,7 @@ import type { Location, TripData } from "./types";
 
 const loc = (id: string, over: Partial<Location> = {}): Location => ({
   id, type: "place", parent_id: null, category_id: null, name: id,
-  description: null, emoji: "📍", city: "Tokyo", lat: 0, lng: 0, ...over,
+  description: null, emoji: "📍", city: "Tokyo", lat: 0, lng: 0, google_cid: null, ...over,
 });
 
 const data = (): TripData => ({

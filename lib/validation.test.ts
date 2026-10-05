@@ -107,7 +107,14 @@ describe("validateLocation", () => {
       city: "Tokyo",
       lat: 35.6,
       lng: 139.7,
+      google_cid: null,
     });
+  });
+  it("google_cid: digit string kept, empty -> null", () => {
+    expect(okValue(validateLocation({ ...base, google_cid: "8592913493251947849" }, "create"))).toMatchObject({
+      google_cid: "8592913493251947849",
+    });
+    expect(okValue(validateLocation({ google_cid: "" }, "update"))).toEqual({ google_cid: null });
   });
   it("create place with parent, category, description, emoji", () => {
     const v = okValue(
@@ -146,6 +153,9 @@ describe("validateLocation", () => {
     ["parent_id", { parent_id: "nope" }],
     ["category_id", { category_id: 5 }],
     ["emoji", { emoji: "" }],
+    ["google_cid", { google_cid: 8592913493 }],
+    ["google_cid", { google_cid: "0x7740294b" }],
+    ["google_cid", { google_cid: "1".repeat(21) }],
   ])("create rejects invalid %s", (field, patch) => {
     bad(validateLocation({ ...base, ...patch }, "create"), new RegExp(field));
   });

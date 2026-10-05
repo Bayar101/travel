@@ -97,8 +97,8 @@ describe("itemPreviews", () => {
     version: 1,
     categories: [],
     locations: [
-      { id: "l1", type: "place", parent_id: null, category_id: null, name: "Senso-ji", description: null, emoji: "⛩️", city: "Tokyo", lat: 0, lng: 0 },
-      { id: "l2", type: "area", parent_id: null, category_id: null, name: "Shibuya", description: null, emoji: "🏙️", city: "Tokyo", lat: 0, lng: 0 },
+      { id: "l1", type: "place", parent_id: null, category_id: null, name: "Senso-ji", description: null, emoji: "⛩️", city: "Tokyo", lat: 0, lng: 0, google_cid: null },
+      { id: "l2", type: "area", parent_id: null, category_id: null, name: "Shibuya", description: null, emoji: "🏙️", city: "Tokyo", lat: 0, lng: 0, google_cid: null },
     ],
     stays: [],
     days: [day("d1", "2026-10-20")],

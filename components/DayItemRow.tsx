@@ -119,7 +119,7 @@ export default function DayItemRow({
             </button>
           </>
         ) : (
-          loc && <DirectionsButton lat={loc.lat} lng={loc.lng} name={loc.name} />
+          loc && <DirectionsButton lat={loc.lat} lng={loc.lng} cid={loc.google_cid} name={loc.name} />
         )}
       </div>
       {expanded && (
@@ -130,7 +130,7 @@ export default function DayItemRow({
                 <li key={p.id} className="flex min-h-11 items-center gap-2.5">
                   <span aria-hidden="true" className="text-xl">{p.emoji}</span>
                   <span className="min-w-0 flex-1 break-words text-base text-zinc-100">{p.name}</span>
-                  <DirectionsButton lat={p.lat} lng={p.lng} name={p.name} />
+                  <DirectionsButton lat={p.lat} lng={p.lng} cid={p.google_cid} name={p.name} />
                 </li>
               ))}
             </ul>

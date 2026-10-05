@@ -6,6 +6,7 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 const MAX_NAME = 120;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const CID_RE = /^\d{1,20}$/;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 // airbnb.<tld> | airbnb.co.jp style | any subdomain of those | abnb.me short links
 const AIRBNB_HOST_RE = /^(?:[a-z0-9-]+\.)*airbnb\.(?:(?:co|com|org|net|ac)\.[a-z]{2}|[a-z]{2,})$/;
@@ -78,6 +79,11 @@ function coord(name: string, v: unknown, limit: number): Field<number> {
     return fail(`${name} must be a number between -${limit} and ${limit}`);
   }
   return { ok: true, value: v };
+}
+
+function cid(name: string, v: unknown): Field<string | null> {
+  if (v === null || v === "") return { ok: true, value: null };
+  return typeof v === "string" && CID_RE.test(v) ? { ok: true, value: v } : fail(`${name} must be a numeric Google Maps id`);
 }
 
 function date(name: string, v: unknown): Field<string> {
@@ -158,6 +164,7 @@ export function validateLocation(
   city?: string;
   lat?: number;
   lng?: number;
+  google_cid?: string | null;
 }> {
   const r = run<Obj>(input, mode, {
     type: {
@@ -172,6 +179,7 @@ export function validateLocation(
     city: { parse: str(), required: true },
     lat: { parse: (n, v) => coord(n, v, 90), required: true },
     lng: { parse: (n, v) => coord(n, v, 180), required: true },
+    google_cid: { parse: cid, default: null },
   });
   if (!r.ok) return r;
   if (r.value.type === "area" && r.value.parent_id != null) return fail("an area cannot have a parent_id");

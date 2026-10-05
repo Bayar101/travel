@@ -4,7 +4,7 @@ import type { TripData } from "./types";
 
 const loc = (id: string, lat: number) => ({
   id, type: "area" as const, parent_id: null, category_id: null, name: id,
-  description: null, emoji: "📍", city: "Tokyo", lat, lng: 139,
+  description: null, emoji: "📍", city: "Tokyo", lat, lng: 139, google_cid: null,
 });
 
 const data = (): TripData => ({

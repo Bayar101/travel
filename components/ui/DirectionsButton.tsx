@@ -2,7 +2,7 @@ import { mapsUrl } from "@/lib/maps";
 import { DirectionsIcon } from "./icons";
 
 /**
- * Opens Google Maps directions to a location.
+ * Opens Google Maps directions to a location: the named place when `cid` is known, else the lat/lng pin.
  * Default: 44px round icon button (lists). `full`: labelled "Directions" button;
  * `primary` makes it the red primary action. `name` makes the accessible name specific
  * ("Open Senso-ji in Google Maps") so a list of these buttons is distinguishable.
@@ -10,6 +10,7 @@ import { DirectionsIcon } from "./icons";
 export default function DirectionsButton({
   lat,
   lng,
+  cid,
   name,
   full = false,
   primary = false,
@@ -17,12 +18,13 @@ export default function DirectionsButton({
 }: {
   lat: number;
   lng: number;
+  cid: string | null;
   name: string;
   full?: boolean;
   primary?: boolean;
   className?: string;
 }) {
-  const href = mapsUrl(lat, lng);
+  const href = mapsUrl(lat, lng, cid);
   if (!full) {
     return (
       <a

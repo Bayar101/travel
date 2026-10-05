@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const UNREADABLE = { error: "Couldn't read that link" };
 const NO_COORDS = "Couldn't find coordinates — open Coordinates and enter them, or paste a link with a pin";
 
-// Expands a Google Maps share link (maps.app.goo.gl) to coordinates + place name. Links without
+// Expands a Google Maps share link (maps.app.goo.gl) to coordinates + place name (+ place cid when present). Links without
 // coordinates (newer app shares) fall back to geocoding the name via Nominatim (approximate: true).
 // Logs only the host: share URLs carry tracking/query data.
 export const POST = handler("api.resolve_maps_link", async ({ req, request_id, log }) => {
@@ -26,9 +26,9 @@ export const POST = handler("api.resolve_maps_link", async ({ req, request_id, l
       log.info("maps_link_unresolved", { request_id, host, reason: r.name ? "geocode_no_match" : "no_coordinates" });
       return json(r.name ? { error: NO_COORDS, name: r.name } : UNREADABLE, 422);
     }
-    log.info("maps_link_resolved", { request_id, host, has_name: r.name !== null, approximate: r.approximate });
-    const { lat, lng, name, approximate } = r;
-    return json(approximate ? { lat, lng, name, approximate } : { lat, lng, name });
+    log.info("maps_link_resolved", { request_id, host, has_name: r.name !== null, has_cid: r.cid !== null, approximate: r.approximate });
+    const { lat, lng, name, cid, approximate } = r;
+    return json({ lat, lng, name, ...(cid ? { cid } : {}), ...(approximate ? { approximate } : {}) });
   } catch (err) {
     // Fixed reason codes only: error messages may embed the URL.
     const msg = err instanceof Error ? err.message : "";

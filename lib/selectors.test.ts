@@ -6,7 +6,7 @@ import type { TripData } from "./types";
 
 const loc = (id: string, over: Partial<TripData["locations"][number]> = {}) => ({
   id, type: "place" as const, parent_id: null, category_id: null, name: id,
-  description: null, emoji: "📍", city: "Tokyo", lat: 0, lng: 0, ...over,
+  description: null, emoji: "📍", city: "Tokyo", lat: 0, lng: 0, google_cid: null, ...over,
 });
 const item = (id: string, over: Partial<TripData["items"][number]> = {}) => ({
   id, day_id: "d1", location_id: null, time: null, position: 0, note: "n", ...over,

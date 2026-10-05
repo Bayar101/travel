@@ -1,9 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { mapsUrl, parseLatLng } from "./maps";
+import { mapsUrl, parseLatLng, placeCid } from "./maps";
 
 describe("mapsUrl", () => {
   it("builds search url", () => {
     expect(mapsUrl(35.6, 139.7)).toBe("https://www.google.com/maps/search/?api=1&query=35.6,139.7");
+  });
+  it("opens the named place when a cid is known", () => {
+    expect(mapsUrl(35.6, 139.7, "8592913493251947849")).toBe("https://www.google.com/maps?cid=8592913493251947849");
+  });
+  it("falls back to coordinates without a cid", () => {
+    expect(mapsUrl(35.6, 139.7, null)).toBe("https://www.google.com/maps/search/?api=1&query=35.6,139.7");
+  });
+});
+
+describe("placeCid", () => {
+  it("decimal cid from the place feature id (beyond Number precision)", () => {
+    const url =
+      "https://www.google.com/maps/place/Asakusa/@35.71,139.79,14.54z/data=!3m1!5s0x60188ec6e881bfbf:0x1baeb8444779d7e6!4m6!3m5!1s0x60188ec1060d67af:0x7740294b7ef17d49!8m2!3d35.7107074!4d139.7965461";
+    expect(placeCid(url)).toBe("8592913493251947849");
+  });
+  it("skips search text and photo ids before the place id", () => {
+    const url =
+      "https://www.google.com/maps/place/W/@35.7,139.8,14z/data=!4m10!1m2!2m1!1sWorkman!3m6!1s0x60188f65db0d1095:0xce4139c7d62fd1ea!8m2!3d35.71!4d139.80";
+    expect(placeCid(url)).toBe(BigInt("0xce4139c7d62fd1ea").toString());
+  });
+  it("percent-encoded colon", () => {
+    expect(placeCid("https://www.google.com/maps/place/X/data=!1s0x1%3A0xff!8m2")).toBe("255");
+  });
+  it("cid query param", () => {
+    expect(placeCid("https://maps.google.com/?cid=12345")).toBe("12345");
+  });
+  it("null without a place id", () => {
+    expect(placeCid("https://www.google.com/maps/search/Thai+Massage/@35.66,139.76,17z")).toBeNull();
+    expect(placeCid("35.6, 139.7")).toBeNull();
+    expect(placeCid("https://www.google.com/maps/place/X/data=!1s0x1:0x0!8m2")).toBeNull();
   });
 });
 

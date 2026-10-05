@@ -25,7 +25,7 @@ export const RESOURCES: Record<Resource, ResourceDef> = {
   },
   locations: {
     table: "locations",
-    columns: "id,type,parent_id,category_id,name,description,emoji,city,lat,lng",
+    columns: "id,type,parent_id,category_id,name,description,emoji,city,lat,lng,google_cid",
     order: { column: "name" },
     validate: validateLocation,
   },

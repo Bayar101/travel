@@ -10,6 +10,7 @@ export interface LocationFormValues {
   city: string;
   lat: string;
   lng: string;
+  google_cid: string; // "" = none; set only from a pasted link
 }
 
 export type LocationFormErrors = Partial<Record<"name" | "city" | "emoji" | "lat" | "lng", string>>;
@@ -53,6 +54,7 @@ export function locationPayload(v: LocationFormValues): Omit<Location, "id"> {
     city: v.city.trim(),
     lat: Number(v.lat.trim()),
     lng: Number(v.lng.trim()),
+    google_cid: v.google_cid || null,
   };
 }
 
@@ -67,6 +69,7 @@ export function locationToForm(l: Location): LocationFormValues {
     city: l.city,
     lat: String(l.lat),
     lng: String(l.lng),
+    google_cid: l.google_cid ?? "",
   };
 }
 
@@ -90,6 +93,11 @@ type Coords = Pick<LocationFormValues, "lat" | "lng">;
 /** A failed paste drops coordinates only if the previous paste filled them (manual entries stay). */
 export function clearAutoCoords<T extends Coords>(v: T, auto: Coords | null): T {
   return auto && v.lat === auto.lat && v.lng === auto.lng ? { ...v, lat: "", lng: "" } : v;
+}
+
+/** Drop the place cid an earlier link filled (a failed or new paste must not keep the old place). */
+export function clearAutoCid<T extends { google_cid: string }>(v: T, auto: string | null): T {
+  return auto !== null && v.google_cid === auto ? { ...v, google_cid: "" } : v;
 }
 
 /** Clear Name only while it is still exactly what an earlier link filled. */

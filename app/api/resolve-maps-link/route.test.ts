@@ -73,6 +73,15 @@ describe("POST /api/resolve-maps-link", () => {
     expect(records()[0]).toMatchObject({ message: "maps_link_resolved", host: "maps.app.goo.gl", approximate: false });
   });
 
+  it("200 includes cid when the final url carries a place id", async () => {
+    fetchMock
+      .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Senso-ji/@35.7,139.7,17z/data=!3m5!1s0x1:0xff!8m2!3d35.7148!4d139.7967"))
+      .mockResolvedValueOnce(ok());
+    const res = await post({ url: SHORT });
+    expect(await res.json()).toEqual({ lat: 35.7148, lng: 139.7967, name: "Senso-ji", cid: "255" });
+    expect(records()[0]).toMatchObject({ message: "maps_link_resolved", has_cid: true });
+  });
+
   it("200 with approximate: true when the name is geocoded", async () => {
     fetchMock
       .mockResolvedValueOnce(redirect("https://www.google.com/maps/place/Kaminarimon+Gate/data=!4m2"))

@@ -98,7 +98,7 @@ function StayCard({ row, data, today, onEdit }: { row: StayRow; data: TripData; 
         <DateBar row={row} today={today} />
       </button>
       <div className="flex gap-2 px-3 pb-3">
-        {loc && <DirectionsButton lat={loc.lat} lng={loc.lng} name={stay.name} full primary={status === "now"} className="flex-1" />}
+        {loc && <DirectionsButton lat={loc.lat} lng={loc.lng} cid={loc.google_cid} name={stay.name} full primary={status === "now"} className="flex-1" />}
         <AirbnbButton url={stay.airbnb_url} className="flex-1" />
       </div>
     </div>

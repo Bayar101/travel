@@ -7,7 +7,7 @@ import {
 
 const loc = (id: string, over: Partial<Location> = {}): Location => ({
   id, type: "place", parent_id: null, category_id: null, name: id, description: null,
-  emoji: "📍", city: "Tokyo", lat: 35.6, lng: 139.7, ...over,
+  emoji: "📍", city: "Tokyo", lat: 35.6, lng: 139.7, google_cid: null, ...over,
 });
 
 const data = (over: Partial<TripData> = {}): TripData => ({

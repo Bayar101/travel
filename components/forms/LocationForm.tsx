@@ -10,11 +10,11 @@ import { useToast } from "@/components/Toast";
 import CategoryForm from "./CategoryForm";
 import { create, resolveMapsLink, update } from "@/lib/api-client";
 import {
-  clearAutoCoords, clearAutoName, cityList, coordsSummary, shouldFillName, defaultEmoji, DEFAULT_EMOJI, QUICK_EMOJI, locationPayload, locationToForm, validateLocationForm,
+  clearAutoCid, clearAutoCoords, clearAutoName, cityList, coordsSummary, shouldFillName, defaultEmoji, DEFAULT_EMOJI, QUICK_EMOJI, locationPayload, locationToForm, validateLocationForm,
   type LocationFormErrors, type LocationFormValues,
 } from "@/lib/location-form";
 import { categoryById, placesInArea } from "@/lib/selectors";
-import { mapsUrl, parseLatLng } from "@/lib/maps";
+import { mapsUrl, parseLatLng, placeCid } from "@/lib/maps";
 import { extractShortLink, isAllowedMapsUrl, placeNameFromUrl } from "@/lib/maps-link";
 import { useTrip } from "@/lib/store";
 import type { Category, Location, LocationType } from "@/lib/types";
@@ -33,7 +33,7 @@ export interface LocationPrefill {
 function emptyForm(prefill?: LocationPrefill): LocationFormValues {
   return {
     type: prefill?.type ?? "place", parent_id: prefill?.parent_id ?? "", name: "", description: "",
-    category_id: "", emoji: DEFAULT_EMOJI, city: prefill?.city ?? "", lat: "", lng: "",
+    category_id: "", emoji: DEFAULT_EMOJI, city: prefill?.city ?? "", lat: "", lng: "", google_cid: "",
   };
 }
 
@@ -62,6 +62,7 @@ function Body({
   const latest = useRef(v); // async link resolution reads the current Name
   const autoName = useRef<string | null>(null);
   const autoCoords = useRef<{ lat: string; lng: string } | null>(null); // last link-filled lat/lng
+  const autoCid = useRef<string | null>(null); // last link-filled place cid
   const [failMsg, setFailMsg] = useState("");
   useEffect(() => {
     latest.current = v;
@@ -114,10 +115,11 @@ function Body({
     return fill;
   }
 
-  function fillFromLink(ll: { lat: number; lng: number }, name: string | null, approximate = false) {
+  function fillFromLink(ll: { lat: number; lng: number }, name: string | null, cid: string | null, approximate = false) {
     const coords = { lat: String(ll.lat), lng: String(ll.lng) };
     autoCoords.current = coords;
-    setV((p) => ({ ...p, ...coords }));
+    autoCid.current = cid;
+    setV((p) => ({ ...p, ...coords, google_cid: cid ?? "" })); // a new place: never keep the old cid
     fillName(name);
     setErrors((e) => ({ ...e, lat: undefined, lng: undefined }));
     setError(null);
@@ -127,8 +129,10 @@ function Body({
   // Failed paste: drop coordinates the previous paste filled (manual entries stay), open the editor.
   function failLink(state: MapsState, name: string | null = null, msg = "") {
     const auto = autoCoords.current; // updater runs later: capture before resetting the ref
+    const cid = autoCid.current;
     autoCoords.current = null;
-    setV((p) => clearAutoCoords(p, auto));
+    autoCid.current = null;
+    setV((p) => clearAutoCid(clearAutoCoords(p, auto), cid));
     fillName(name);
     setFailMsg(msg);
     setMapsState(state);
@@ -139,9 +143,11 @@ function Body({
   function clearAutoFill() {
     const coords = autoCoords.current;
     const name = autoName.current;
+    const cid = autoCid.current;
     autoCoords.current = null;
     autoName.current = null;
-    setV((p) => clearAutoName(clearAutoCoords(p, coords), name));
+    autoCid.current = null;
+    setV((p) => clearAutoCid(clearAutoName(clearAutoCoords(p, coords), name), cid));
   }
 
   function onMapsInput(s: string) {
@@ -151,7 +157,7 @@ function Body({
     setNameFilled(false);
     if (!s.trim()) return setMapsState("idle");
     const ll = parseLatLng(s);
-    if (ll) return fillFromLink(ll, placeNameFromUrl(s));
+    if (ll) return fillFromLink(ll, placeNameFromUrl(s), placeCid(s));
     // Short link, or a full place URL without coordinates (server geocodes its name).
     const full = s.match(/https:\/\/\S+/)?.[0];
     const short = extractShortLink(s) ?? (full && isAllowedMapsUrl(full) && placeNameFromUrl(full) ? full : null);
@@ -163,7 +169,7 @@ function Body({
       try {
         const r = await resolveMapsLink(short);
         if (seq !== resolveSeq.current) return;
-        if (r.ok) fillFromLink(r, r.name, r.approximate);
+        if (r.ok) fillFromLink(r, r.name, r.cid, r.approximate);
         else failLink("short-failed", r.name, r.error);
       } catch (e) {
         if (seq === resolveSeq.current) failLink("short-failed", null, e instanceof Error ? e.message : "");
