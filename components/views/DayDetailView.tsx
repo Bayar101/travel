@@ -6,6 +6,7 @@ import ItemForm from "@/components/forms/ItemForm";
 import DayItemRow, { NoteCallout } from "@/components/DayItemRow";
 import Header from "@/components/Header";
 import HotelCard from "@/components/HotelCard";
+import WeatherCard from "@/components/WeatherCard";
 import { useToast } from "@/components/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
@@ -170,6 +171,7 @@ function DayDetail({ id }: { id: string }) {
             </div>
             {day.note && <NoteCallout note={day.note} />}
             <HotelCard data={data} date={day.date} />
+            <WeatherCard data={data} date={day.date} />
           </div>
 
           {empty && (
